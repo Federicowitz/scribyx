@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Scribe - Editor Narrativo Offline</title>
+    
+    <!-- ========================================== -->
+    <!-- STILI CSS (Design System & Responsiveness) -->
+    <!-- ========================================== -->
+    <style>
+        /* Variabili di Tema */
+        :root {
+            /* Colori Tema Chiaro */
+            --bg-body: #f4f5f7;
+            --bg-sidebar: #ffffff;
+            --bg-editor: #ffffff;
+            --bg-toolbar: #ffffff;
+            --text-main: #333333;
+            --text-muted: #6b7280;
+            --border-color: #e5e7eb;
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --danger-color: #dc2626;
+            --danger-hover: #b91c1c;
+            --hover-bg: #f3f4f6;
+            --active-bg: #eff6ff;
+            --active-text: #1e40af;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --modal-overlay: rgba(0, 0, 0, 0.5);
+            
+            /* Tipografia */
+            --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --font-editor: "Georgia", "Merriweather", serif;
+            
+            /* Dimensioni */
+            --sidebar-width: 280px;
+            --toolbar-height: 50px;
+        }
+
+        [data-theme="dark"] {
+            /* Colori Tema Scuro */
+            --bg-body: #111827;
+            --bg-sidebar: #1f2937;
+            --bg-editor: #1f2937;
+            --bg-toolbar: #1f2937;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --border-color: #374151;
+            --primary-color: #3b82f6;
+            --primary-hover: #60a5fa;
+            --danger-color: #ef4444;
+            --danger-hover: #f87171;
+            --hover-bg: #374151;
+            --active-bg: #1e3a8a;
+            --active-text: #bfdbfe;
+            --modal-overlay: rgba(0, 0, 0, 0.7);
+        }
+
+        /* Reset Base */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-ui);
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden; /* Gestito dai container interni */
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        button {
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-family: inherit;
+            color: inherit;
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        /* Struttura Layout Principale */
+        .app-container {
+            display: flex;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* ==================== */
+        /* SIDEBAR (Capitoli)   */
+        /* ==================== */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            z-index: 20;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .chapter-list {
+            flex: 1;
+            overflow-y: auto;
+            list-style: none;
+            padding: 10px;
+        }
+
+        /* Custom Scrollbar */
+        .chapter-list::-webkit-scrollbar, 
+        .editor-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .chapter-list::-webkit-scrollbar-thumb, 
+        .editor-container::-webkit-scrollbar-thumb {
+            background-color: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .chapter-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            margin-bottom: 4px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            user-select: none;
+        }
+
+        .chapter-item:hover {
+            background-color: var(--hover-bg);
+        }
+
+        .chapter-item.active {
+            background-color: var(--active-bg);
+            color: var(--active-text);
+            font-weight: 600;
+        }
+
+        .chapter-title {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+        }
+
+        .chapter-actions {
+            display: flex;
+            gap: 5px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .chapter-item:hover .chapter-actions,
+        .chapter-item.active .chapter-actions {
+            opacity: 1;
+        }
+
+        .icon-btn {
+            padding: 5px;
+            border-radius: 4px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .icon-btn:hover {
+            background-color: var(--border-color);
+            color: var(--text-main);
+        }
+
+        .icon-btn.danger:hover {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .sidebar-footer {
+            padding: 15px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 10px;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 6px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        /* ==================== */
+        /* AREA PRINCIPALE      */
+        /* ==================== */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background-color: var(--bg-body);
+            position: relative;
+        }
+
+        /* Header Mobile & Strumenti Globali */
+        .top-navbar {
+            height: var(--toolbar-height);
+            background-color: var(--bg-toolbar);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+        }
+
+        .mobile-menu-btn {
+            display: none; /* Nascosto su desktop */
+        }
+
+        .global-tools {
+            display: flex;
+            gap: 10px;
+            margin-left: auto;
+        }
+
+        /* Toolbar Formattazione Editor */
+        .editor-toolbar {
+            display: flex;
+            gap: 5px;
+            padding: 10px;
+            background-color: var(--bg-editor);
+            border-bottom: 1px solid var(--border-color);
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .format-btn {
+            padding: 6px 10px;
+            border-radius: 4px;
+            background-color: var(--bg-toolbar);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            font-weight: bold;
+            font-family: var(--font-editor);
+            transition: all 0.2s;
+        }
+
+        .format-btn:hover {
+            background-color: var(--hover-bg);
+        }
+
+        .format-separator {
+            width: 1px;
+            background-color: var(--border-color);
+            margin: 0 5px;
+        }
+
+        /* Container dell'Editor (Focalizzato sulla scrittura) */
+        .editor-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: var(--bg-editor);
+        }
+
+        .editor-wrapper {
+            width: 100%;
+            max-width: 750px; /* Larghezza ottimale per lettura/scrittura lunga */
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .chapter-title-input {
+            width: 100%;
+            font-size: 2.5rem;
+            font-weight: 700;
+            border: none;
+            background: transparent;
+            color: var(--text-main);
+            outline: none;
+            font-family: var(--font-ui);
+        }
+
+        .chapter-title-input::placeholder {
+            color: var(--border-color);
+        }
+
+        /* L'Editor Vero e Proprio */
+        .text-editor {
+            width: 100%;
+            min-height: 50vh;
+            font-family: var(--font-editor);
+            font-size: 1.15rem;
+            line-height: 1.8;
+            color: var(--text-main);
+            outline: none;
+            padding-bottom: 100px; /* Spazio sul fondo per comodità */
+        }
+
+        .text-editor p {
+            margin-bottom: 1.5em;
+        }
+
+        .text-editor h2, .text-editor h3 {
+            font-family: var(--font-ui);
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+        }
+
+        .text-editor ul, .text-editor ol {
+            margin-bottom: 1.5em;
+            padding-left: 2em;
+        }
+
+        .text-editor:empty:before {
+            content: attr(data-placeholder);
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        /* Status Bar (Contatore e Salvataggio) */
+        .status-bar {
+            height: 30px;
+            background-color: var(--bg-toolbar);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .save-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .save-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #10b981; /* Verde salvato */
+        }
+        .save-dot.saving {
+            background-color: #f59e0b; /* Giallo in salvataggio */
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+
+        /* ==================== */
+        /* MODALI (Finestre)    */
+        /* ==================== */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--modal-overlay);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            backdrop-filter: blur(2px);
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            background-color: var(--bg-sidebar);
+            border-radius: 8px;
+            width: 90%;
+            max-width: 400px;
+            padding: 24px;
+            box-shadow: var(--shadow-lg);
+            transform: translateY(20px);
+            transition: transform 0.2s;
+            border: 1px solid var(--border-color);
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            margin-bottom: 15px;
+            color: var(--text-main);
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            font-family: var(--font-ui);
+            font-size: 1rem;
+            margin-top: 10px;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .btn-cancel {
+            padding: 8px 16px;
+            border-radius: 4px;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-confirm {
+            padding: 8px 16px;
+            border-radius: 4px;
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-confirm.danger {
+            background-color: var(--danger-color);
+        }
+
+        /* Nascondi input file nativo */
+        #file-import { display: none; }
+
+        /* ==================== */
+        /* RESPONSIVE (MOBILE)  */
+        /* ==================== */
+        @media (max-width: 768px) {
+            .mobile-menu-btn {
+                display: flex;
+            }
+
+            .sidebar {
+                position: absolute;
+                top: 0;
+                left: 0;
+                transform: translateX(-100%);
+                box-shadow: var(--shadow-lg);
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+
+            /* Overlay per chiudere la sidebar su mobile */
+            .sidebar-overlay {
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background-color: var(--modal-overlay);
+                z-index: 15;
+                display: none;
+            }
+
+            .sidebar-overlay.active {
+                display: block;
+            }
+
+            .editor-container {
+                padding: 20px 15px;
+            }
+
+            .chapter-title-input {
+                font-size: 2rem;
+            }
+
+            .editor-toolbar {
+                overflow-x: auto;
+                justify-content: flex-start;
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Contenitore App -->
+    <div class="app-container">
+        
+        <!-- Overlay per mobile -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h1>Scribe.</h1>
+                <button class="icon-btn" id="closeSidebarBtn" style="display: none;" title="Chiudi menu">
+                    <!-- Icona X -->
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <ul class="chapter-list" id="chapterList">
+                <!-- I capitoli vengono generati dinamicamente qui dal JS -->
+            </ul>
+
+            <div class="sidebar-footer">
+                <button class="btn-primary" id="btnNewChapter">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                    Nuovo Capitolo
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN AREA -->
+        <main class="main-content">
+            
+            <!-- Navbar Globale -->
+            <header class="top-navbar">
+                <button class="icon-btn mobile-menu-btn" id="openSidebarBtn" title="Menu">
+                    <!-- Icona Menu -->
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+                </button>
+
+                <div class="global-tools">
+                    <button class="icon-btn" id="btnThemeToggle" title="Cambia Tema">
+                        <!-- Icona Luna (default) -->
+                        <svg id="icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+                        <!-- Icona Sole (nascosta) -->
+                        <svg id="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                    </button>
+                    <button class="icon-btn" id="btnExport" title="Esporta Progetto (JSON)">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    </button>
+                    <button class="icon-btn" id="btnImportTrigger" title="Importa Progetto (JSON)">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                    </button>
+                    <input type="file" id="file-import" accept=".json">
+                </div>
+            </header>
+
+            <!-- Toolbar Editor -->
+            <div class="editor-toolbar" id="toolbar">
+                <button class="format-btn" data-command="bold" title="Grassetto (Ctrl+B)"><b>B</b></button>
+                <button class="format-btn" data-command="italic" title="Corsivo (Ctrl+I)"><i>I</i></button>
+                <div class="format-separator"></div>
+                <button class="format-btn" data-command="formatBlock" data-value="H2" title="Titolo">H2</button>
+                <div class="format-separator"></div>
+                <button class="format-btn" data-command="insertUnorderedList" title="Elenco Puntato">&bull; Lista</button>
+                <button class="format-btn" data-command="insertOrderedList" title="Elenco Numerato">1. Lista</button>
+                <div class="format-separator"></div>
+                <button class="format-btn" data-command="indent" title="Aumenta Rientro">&rarr;</button>
+                <button class="format-btn" data-command="outdent" title="Riduci Rientro">&larr;</button>
+            </div>
+
+            <!-- Area Editor -->
+            <div class="editor-container">
+                <div class="editor-wrapper" id="editorWrapper" style="display: none;">
+                    <input type="text" class="chapter-title-input" id="editorTitle" placeholder="Titolo del capitolo..." autocomplete="off">
+                    
+                    <!-- Core Editor: contenteditable -->
+                    <div class="text-editor" id="editorContent" contenteditable="true" data-placeholder="Inizia a scrivere la tua storia qui..."></div>
+                </div>
+                
+                <!-- Stato vuoto (nessun capitolo) -->
+                <div id="emptyState" style="text-align: center; color: var(--text-muted); margin-top: 100px;">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="margin-bottom: 20px;"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                    <h2>Nessun capitolo selezionato</h2>
+                    <p style="margin-top: 10px;">Crea un nuovo capitolo dalla barra laterale per iniziare a scrivere.</p>
+                </div>
+            </div>
+
+            <!-- Barra di stato -->
+            <footer class="status-bar">
+                <div id="wordCountDisplay">Parole: 0</div>
+                <div class="save-indicator">
+                    <span class="save-dot" id="saveDot"></span>
+                    <span id="saveText">Salvato</span>
+                </div>
+            </footer>
+        </main>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODALI (Finestre di dialogo)               -->
+    <!-- ========================================== -->
+
+    <!-- Modale Rinomina -->
+    <div class="modal-overlay" id="modalRename">
+        <div class="modal-content">
+            <h3 class="modal-title">Rinomina Capitolo</h3>
+            <div class="modal-body">
+                <input type="text" id="renameInput" class="modal-input" placeholder="Nuovo nome...">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="Modals.close('modalRename')">Annulla</button>
+                <button class="btn-confirm" id="btnConfirmRename">Salva</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale Eliminazione -->
+    <div class="modal-overlay" id="modalDelete">
+        <div class="modal-content">
+            <h3 class="modal-title" style="color: var(--danger-color);">Elimina Capitolo</h3>
+            <div class="modal-body">
+                Sei sicuro di voler eliminare questo capitolo? 
+                <br><br>
+                <small style="color: var(--text-muted);">Il testo verrà automaticamente copiato negli appunti per sicurezza.</small>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="Modals.close('modalDelete')">Annulla</button>
+                <button class="btn-confirm danger" id="btnConfirmDelete">Elimina Definitivamente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale Info Importazione -->
+    <div class="modal-overlay" id="modalImportWarning">
+        <div class="modal-content">
+            <h3 class="modal-title">Attenzione</h3>
+            <div class="modal-body">
+                L'importazione di un file sovrascriverà <b>completamente</b> il progetto attuale. Assicurati di aver esportato una copia se non vuoi perdere il lavoro corrente. Vuoi procedere?
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="Modals.close('modalImportWarning')">Annulla</button>
+                <button class="btn-confirm" id="btnConfirmImport">Seleziona File</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- JAVASCRIPT CORE (Logica dell'applicazione) -->
+    <!-- ========================================== -->
+    <script>
+        /**
+         * SCRIBE - Editor JS
+         * Architettura basata su un oggetto di stato centrale (bookData)
+         * sincronizzato con il localStorage tramite debounce.
+         */
+
+        // --- 1. CONFIGURAZIONE E STATO GLOBALE ---
+        const STORAGE_KEY = 'scribe_book_data_v1';
+        
+        // Struttura dati predefinita (Schema)
+        const defaultState = {
+            bookTitle: "Nuovo Progetto",
+            lastModified: Date.now(),
+            settings: {
+                theme: "light"
+            },
+            chapterOrder: [], // Array di ID per mantenere l'ordinamento
+            chapters: {}      // Mappa { id: { title, content, wordCount } }
+        };
+
+        let bookData = null;
+        let currentChapterId = null;
+        let saveTimeout = null;
+        let targetDeleteId = null;
+        let targetRenameId = null;
+
+        // --- 2. ELEMENTI DOM ---
+        const DOM = {
+            html: document.documentElement,
+            chapterList: document.getElementById('chapterList'),
+            editorWrapper: document.getElementById('editorWrapper'),
+            emptyState: document.getElementById('emptyState'),
+            editorTitle: document.getElementById('editorTitle'),
+            editorContent: document.getElementById('editorContent'),
+            wordCountDisplay: document.getElementById('wordCountDisplay'),
+            saveDot: document.getElementById('saveDot'),
+            saveText: document.getElementById('saveText'),
+            sidebar: document.getElementById('sidebar'),
+            sidebarOverlay: document.getElementById('sidebarOverlay'),
+            btnThemeToggle: document.getElementById('btnThemeToggle'),
+            iconSun: document.getElementById('iconSun'),
+            iconMoon: document.getElementById('iconMoon'),
+            fileImport: document.getElementById('file-import')
+        };
+
+        // --- 3. INIZIALIZZAZIONE ---
+        function init() {
+            loadData();
+            applyTheme(bookData.settings.theme);
+            renderChapterList();
+            
+            // Seleziona il primo capitolo se esiste, altrimenti mostra stato vuoto
+            if (bookData.chapterOrder.length > 0) {
+                selectChapter(bookData.chapterOrder[0]);
+            } else {
+                showEmptyState();
+            }
+
+            setupEventListeners();
+        }
+
+        // --- 4. GESTIONE DATI & STORAGE ---
+        function loadData() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                try {
+                    bookData = JSON.parse(stored);
+                    // Migrazione/Fallback se mancano chiavi in vecchi salvataggi
+                    if (!bookData.settings) bookData.settings = { theme: 'light' };
+                } catch (e) {
+                    console.error("Errore nel parsing del localStorage", e);
+                    bookData = JSON.parse(JSON.stringify(defaultState));
+                }
+            } else {
+                // Deep copy dello stato default
+                bookData = JSON.parse(JSON.stringify(defaultState));
+            }
+        }
+
+        function triggerSave() {
+            // UI Feedback: Inizio salvataggio
+            DOM.saveDot.classList.add('saving');
+            DOM.saveText.textContent = "Salvataggio...";
+
+            // Logica Debounce: annulla il timer precedente se l'utente continua a scrivere
+            clearTimeout(saveTimeout);
+            
+            saveTimeout = setTimeout(() => {
+                // Aggiorna lo stato in memoria del capitolo corrente prima di salvare
+                if (currentChapterId && bookData.chapters[currentChapterId]) {
+                    bookData.chapters[currentChapterId].title = DOM.editorTitle.value;
+                    // Salva l'HTML generato dal contenteditable
+                    bookData.chapters[currentChapterId].content = DOM.editorContent.innerHTML;
+                    
+                    // Calcolo parole
+                    const text = DOM.editorContent.innerText || "";
+                    const words = text.match(/\b[-?a-zA-ZàèéìòùÀÈÉÌÒÙ0-9_]+\b/g);
+                    const count = words ? words.length : 0;
+                    bookData.chapters[currentChapterId].wordCount = count;
+                    DOM.wordCountDisplay.textContent = `Parole: ${count}`;
+                }
+
+                bookData.lastModified = Date.now();
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(bookData));
+                
+                // Aggiorna titolo nella sidebar (se è cambiato)
+                renderChapterList();
+
+                // UI Feedback: Salvato
+                DOM.saveDot.classList.remove('saving');
+                DOM.saveText.textContent = "Salvato";
+            }, 1000); // Aspetta 1 secondo di inattività prima di salvare
+        }
+
+        // --- 5. LOGICA CAPITOLI ---
+        
+        function generateId() {
+            return 'cap_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+        }
+
+        function createNewChapter() {
+            const id = generateId();
+            const newChapter = {
+                id: id,
+                title: "Capitolo " + (bookData.chapterOrder.length + 1),
+                content: "<p></p>",
+                wordCount: 0
+            };
+
+            bookData.chapters[id] = newChapter;
+            bookData.chapterOrder.push(id);
+            
+            triggerSave();
+            renderChapterList();
+            selectChapter(id);
+            
+            // Focus sul titolo per invitare alla modifica
+            setTimeout(() => DOM.editorTitle.focus(), 100);
+            
+            // Chiudi sidebar su mobile
+            closeMobileSidebar();
+        }
+
+        function selectChapter(id) {
+            // Se c'è un capitolo attivo, assicuriamoci che sia in coda per il salvataggio
+            if (currentChapterId && currentChapterId !== id) {
+                triggerSave();
+            }
+
+            currentChapterId = id;
+            const chapter = bookData.chapters[id];
+
+            if (!chapter) return;
+
+            // Popola l'editor
+            DOM.editorTitle.value = chapter.title;
+            DOM.editorContent.innerHTML = chapter.content;
+            DOM.wordCountDisplay.textContent = `Parole: ${chapter.wordCount || 0}`;
+
+            // Gestione UI
+            DOM.emptyState.style.display = 'none';
+            DOM.editorWrapper.style.display = 'flex';
+            
+            renderChapterList(); // Per aggiornare la classe 'active'
+            closeMobileSidebar();
+        }
+
+        function showEmptyState() {
+            currentChapterId = null;
+            DOM.editorWrapper.style.display = 'none';
+            DOM.emptyState.style.display = 'block';
+            DOM.wordCountDisplay.textContent = "Parole: 0";
+        }
+
+        function deleteChapter(id) {
+            const chapter = bookData.chapters[id];
+            
+            // REQUISITO: Copia automatica del testo prima della cancellazione
+            // Creiamo un elemento temporaneo per estrarre il plain text dall'HTML
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = chapter.content;
+            const plainText = chapter.title + "\n\n" + (tempDiv.innerText || tempDiv.textContent);
+            
+            // Uso della Clipboard API
+            navigator.clipboard.writeText(plainText).then(() => {
+                console.log("Testo copiato negli appunti per sicurezza.");
+            }).catch(err => {
+                console.error("Impossibile copiare negli appunti", err);
+            });
+
+            // Rimozione dai dati
+            delete bookData.chapters[id];
+            bookData.chapterOrder = bookData.chapterOrder.filter(chapId => chapId !== id);
+            
+            triggerSave();
+            
+            // Gestione interfaccia
+            if (currentChapterId === id) {
+                if (bookData.chapterOrder.length > 0) {
+                    // Seleziona il capitolo precedente o successivo
+                    selectChapter(bookData.chapterOrder[0]);
+                } else {
+                    showEmptyState();
+                }
+            } else {
+                renderChapterList();
+            }
+        }
+
+        // --- 6. RENDER INTERFACCIA (SIDEBAR) ---
+        function renderChapterList() {
+            DOM.chapterList.innerHTML = '';
+            
+            bookData.chapterOrder.forEach(id => {
+                const chapter = bookData.chapters[id];
+                if (!chapter) return;
+
+                const li = document.createElement('li');
+                li.className = `chapter-item ${id === currentChapterId ? 'active' : ''}`;
+                
+                // Contenitore del titolo (cliccabile per selezionare)
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'chapter-title';
+                titleSpan.textContent = chapter.title || "Senza Titolo";
+                titleSpan.onclick = () => selectChapter(id);
+
+                // Contenitore azioni (Rinomina, Elimina)
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'chapter-actions';
+
+                // Pulsante Rinomina
+                const btnRename = document.createElement('button');
+                btnRename.className = 'icon-btn';
+                btnRename.title = "Rinomina";
+                btnRename.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+                btnRename.onclick = (e) => {
+                    e.stopPropagation(); // Evita di attivare il selectChapter
+                    openRenameModal(id);
+                };
+
+                // Pulsante Elimina
+                const btnDelete = document.createElement('button');
+                btnDelete.className = 'icon-btn danger';
+                btnDelete.title = "Elimina";
+                btnDelete.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
+                btnDelete.onclick = (e) => {
+                    e.stopPropagation();
+                    openDeleteModal(id);
+                };
+
+                actionsDiv.appendChild(btnRename);
+                actionsDiv.appendChild(btnDelete);
+
+                li.appendChild(titleSpan);
+                li.appendChild(actionsDiv);
+                
+                DOM.chapterList.appendChild(li);
+            });
+        }
+
+        // --- 7. MODALI E GESTIONE UI ---
+        const Modals = {
+            open: (id) => document.getElementById(id).classList.add('active'),
+            close: (id) => document.getElementById(id).classList.remove('active')
+        };
+
+        function openRenameModal(id) {
+            targetRenameId = id;
+            const input = document.getElementById('renameInput');
+            input.value = bookData.chapters[id].title;
+            Modals.open('modalRename');
+            setTimeout(() => input.focus(), 100); // Focus delay per transizione CSS
+        }
+
+        function confirmRename() {
+            if (!targetRenameId) return;
+            const newTitle = document.getElementById('renameInput').value.trim();
+            if (newTitle) {
+                bookData.chapters[targetRenameId].title = newTitle;
+                if (currentChapterId === targetRenameId) {
+                    DOM.editorTitle.value = newTitle;
+                }
+                triggerSave();
+                renderChapterList();
+            }
+            Modals.close('modalRename');
+            targetRenameId = null;
+        }
+
+        function openDeleteModal(id) {
+            targetDeleteId = id;
+            Modals.open('modalDelete');
+        }
+
+        function confirmDelete() {
+            if (targetDeleteId) {
+                deleteChapter(targetDeleteId);
+            }
+            Modals.close('modalDelete');
+            targetDeleteId = null;
+        }
+
+        // --- 8. EDITOR FORMATTING ---
+        function formatText(command, value = null) {
+            // L'API document.execCommand è deprecata dalle specifiche ma rimane
+            // l'unico standard cross-browser per contenteditable senza framework esterni.
+            // Perfetta per editor leggeri e offline.
+            document.execCommand(command, false, value);
+            DOM.editorContent.focus();
+            triggerSave(); // Forza il salvataggio per registrare la formattazione
+        }
+
+        // Gestione corretta dei ritorni a capo (invio crea <p> e non <div>)
+        DOM.editorContent.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                document.execCommand('formatBlock', false, 'p');
+            }
+            // Supporto shortcut da tastiera base
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key.toLowerCase()) {
+                    case 'b': e.preventDefault(); formatText('bold'); break;
+                    case 'i': e.preventDefault(); formatText('italic'); break;
+                }
+            }
+        });
+
+        // --- 9. IMPORTAZIONE ED ESPORTAZIONE (JSON) ---
+        function exportProject() {
+            // Forza un salvataggio immediato prima di esportare
+            clearTimeout(saveTimeout);
+            triggerSave();
+
+            const dataStr = JSON.stringify(bookData, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            // Nome file sanitizzato basato sul titolo del libro o data
+            const dateStr = new Date().toISOString().split('T')[0];
+            a.download = `scribe_backup_${dateStr}.json`;
+            document.body.appendChild(a);
+            a.click();
+            
+            // Cleanup
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function handleFileImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    
+                    // Validazione basica della struttura JSON
+                    if (importedData.chapters && Array.isArray(importedData.chapterOrder)) {
+                        bookData = importedData;
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(bookData));
+                        
+                        // Riavvia l'UI
+                        init();
+                        alert("Progetto importato con successo!");
+                    } else {
+                        alert("Il file JSON non ha un formato Scribe valido.");
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert("Errore durante la lettura del file JSON.");
+                }
+            };
+            reader.readAsText(file);
+            // Resetta l'input file per permettere di caricare lo stesso file due volte
+            event.target.value = '';
+        }
+
+        // --- 10. TEMI E UI MOBILE ---
+        function applyTheme(theme) {
+            DOM.html.setAttribute('data-theme', theme);
+            bookData.settings.theme = theme;
+            
+            if (theme === 'dark') {
+                DOM.iconMoon.style.display = 'none';
+                DOM.iconSun.style.display = 'block';
+            } else {
+                DOM.iconMoon.style.display = 'block';
+                DOM.iconSun.style.display = 'none';
+            }
+            
+            // Salva preferenza tema asincrona per non bloccare
+            setTimeout(() => {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(bookData));
+            }, 0);
+        }
+
+        function toggleTheme() {
+            const current = DOM.html.getAttribute('data-theme');
+            applyTheme(current === 'light' ? 'dark' : 'light');
+        }
+
+        function openMobileSidebar() {
+            DOM.sidebar.classList.add('mobile-open');
+            DOM.sidebarOverlay.classList.add('active');
+        }
+
+        function closeMobileSidebar() {
+            DOM.sidebar.classList.remove('mobile-open');
+            DOM.sidebarOverlay.classList.remove('active');
+        }
+
+        // --- 11. REGISTRAZIONE EVENT LISTENERS GLOBALI ---
+        function setupEventListeners() {
+            // Toolbar Formattazione
+            document.querySelectorAll('.format-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault(); // Evita la perdita del focus dell'editor
+                    const cmd = btn.getAttribute('data-command');
+                    const val = btn.getAttribute('data-value');
+                    formatText(cmd, val);
+                });
+            });
+
+            // Autosalvataggio Editor
+            DOM.editorTitle.addEventListener('input', triggerSave);
+            DOM.editorContent.addEventListener('input', triggerSave);
+
+            // Pulsanti Sidebar e Mobile
+            document.getElementById('btnNewChapter').addEventListener('click', createNewChapter);
+            document.getElementById('openSidebarBtn').addEventListener('click', openMobileSidebar);
+            document.getElementById('closeSidebarBtn').addEventListener('click', closeMobileSidebar);
+            DOM.sidebarOverlay.addEventListener('click', closeMobileSidebar);
+            
+            // Gestione Schermi ridimensionati (da mobile a desktop)
+            window.addEventListener('resize', () => {
+                if (window.innerWidth > 768) {
+                    closeMobileSidebar();
+                }
+            });
+
+            // Tools in Header
+            DOM.btnThemeToggle.addEventListener('click', toggleTheme);
+            document.getElementById('btnExport').addEventListener('click', exportProject);
+            
+            // Workflow Importazione
+            document.getElementById('btnImportTrigger').addEventListener('click', () => {
+                Modals.open('modalImportWarning');
+            });
+            document.getElementById('btnConfirmImport').addEventListener('click', () => {
+                Modals.close('modalImportWarning');
+                DOM.fileImport.click();
+            });
+            DOM.fileImport.addEventListener('change', handleFileImport);
+
+            // Conferme Modali
+            document.getElementById('btnConfirmRename').addEventListener('click', confirmRename);
+            document.getElementById('renameInput').addEventListener('keydown', (e) => {
+                if(e.key === 'Enter') confirmRename();
+            });
+            document.getElementById('btnConfirmDelete').addEventListener('click', confirmDelete);
+
+            // Assicuriamoci che l'editor mantenga i paragrafi vuoti correttamente per l'UX
+            DOM.editorContent.addEventListener('click', () => {
+                if (DOM.editorContent.innerHTML.trim() === '') {
+                    document.execCommand('formatBlock', false, 'p');
+                }
+            });
+        }
+
+        // Avvia l'applicazione al caricamento del DOM
+        document.addEventListener('DOMContentLoaded', init);
+
+    </script>
+</body>
+</html>
