@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Sfondo arrotondato -->
+  <rect width="512" height="512" rx="112" fill="#2563eb"/>
+  
+  <!-- Icona Libro -->
+  <path d="M256 160V384C256 384 216 344 144 344C100 344 80 360 80 360V136C80 136 100 120 144 120C216 120 256 160 256 160Z" fill="none" stroke="#ffffff" stroke-width="28" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M256 160V384C256 384 296 344 368 344C412 344 432 360 432 360V136C432 136 412 120 368 120C296 120 256 160 256 160Z" fill="none" stroke="#ffffff" stroke-width="28" stroke-linejoin="round" stroke-linecap="round"/>
+  
+  <!-- Segnalibro -->
+  <path d="M256 160 L256 240" stroke="#ffffff" stroke-width="28" stroke-linecap="round"/>
+  
+  <!-- Testo "Scribyx" in basso -->
+  <text x="256" y="460" font-family="system-ui, sans-serif" font-weight="bold" font-size="56" fill="#ffffff" text-anchor="middle">Scribyx</text>
+</svg>
