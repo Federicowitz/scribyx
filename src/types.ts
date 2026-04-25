@@ -10,6 +10,15 @@ export type Snapshot = {
   data: { 
     title: string; content: any; 
     categories: Category[]; entities: Entity[]; 
-    relations: Relation[]; todos: Todo[] 
+    relations: Relation[]; todos: Todo[];
+    fragmentLinks: FragmentLinks; 
   };
 };
+
+export type FragmentLinks = {
+  [linkId: string]: {
+    entityIds: string[];
+    todoIds: string[];
+  }
+}
+
