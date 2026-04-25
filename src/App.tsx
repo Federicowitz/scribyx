@@ -63,6 +63,7 @@ export default function App() {
     editorProps: {
       handleClick(view, pos, event) {
         const $pos = view.state.doc.resolve(pos);
+        console.log(pos);
         const marks = $pos.marks();
         const linkMark = marks.find(m => m.type.name === 'entityLink');
 
@@ -145,6 +146,25 @@ export default function App() {
     setAddMoreMenu(null);
   };
 
+  const removeTodoMarkFromEditor = (todoId: string) => {
+    if (!editor) return;
+
+    editor.state.doc.descendants((node, pos) => {
+      const hasMark = node.marks?.some(
+        (m: any) => m.type.name === 'todoMark' && m.attrs.todoId === todoId
+      );
+
+      if (hasMark) {
+        editor
+          .chain()
+          .focus()
+          .setTextSelection({ from: pos, to: pos + node.nodeSize })
+          .unsetMark('todoMark')
+          .run();
+      }
+    });
+  };
+
   if (!isLoaded) return <div>Caricamento...</div>;
 
   return (
@@ -171,8 +191,10 @@ export default function App() {
           setTodos(prev => [...prev, { id: anchorId || uid(), text, done: false, anchorId }])}
         onToggleTodo={(id: string) =>
           setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t))}
-        onRemoveTodo={(id: string) =>
-          setTodos(prev => prev.filter(t => t.id !== id))}
+        onRemoveTodo={(id: string) => {
+          setTodos(prev => prev.filter(t => t.id !== id));
+          removeTodoMarkFromEditor(id);
+        }}
         onNavigateTodo={(todoId: string) => {
           if (!editor) return;
           let foundPos = -1;
@@ -556,3 +578,4 @@ function AddEntityMenu({
     </div>
   );
 }
+
