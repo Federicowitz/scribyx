@@ -12,7 +12,9 @@ import type { Todo, Category, Entity, Relation, Snapshot, FragmentLinks } from '
 import { Sidebar } from './components/Sidebar';
 import { EntityModal } from './components/EntityModal';
 import { VersionsPage } from './components/VersionsPage';
-
+import { syncChaptersFromDoc, createChapterSnapshot, restoreChapterSnapshot } from './chapterUtils';
+import { ChapterHistoryDrawer } from './components/ChapterHistoryDrawer';
+import type { Chapter, ChapterSnapshot, ChapterStatus } from './types';
 import './global.css';
 
 const DOC_ID = 'main-workspace';
@@ -32,9 +34,13 @@ export default function App() {
   const [versions, setVersions] = useState<Snapshot[]>([]);
   const [activeVersionId, setActiveVersionId] = useState('');
   const [fragmentLinks, setFragmentLinks] = useState<FragmentLinks>({});
-
   const [editingEntity, setEditingEntity] = useState<Entity | null>(null);
   const [headings, setHeadings] = useState<{ level: number; text: string; pos: number }[]>([]);
+
+  //Roba che serve per sincronizzare i capitoli
+  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
+  const [historyDrawerChapterId, setHistoryDrawerChapterId] = useState<string | null>(null);
 
   // Menu info (lettura link)
   const [activeLinkId, setActiveLinkId] = useState<string | null>(null);
@@ -101,6 +107,7 @@ export default function App() {
         if (data.activeVersionId) setActiveVersionId(data.activeVersionId);
         if (data.fragmentLinks) setFragmentLinks(data.fragmentLinks);
         if (editor && data.content) editor.commands.setContent(data.content);
+        if (data.chapters) setChapters(data.chapters);
       }
       setIsLoaded(true);
     });
@@ -113,11 +120,71 @@ export default function App() {
       db.saveDocument(DOC_ID, {
         title, categories, entities, relations, todos,
         versions, activeVersionId, fragmentLinks,
-        content: editor.getJSON()
+        content: editor.getJSON(),
+        chapters,
       });
     }, 1000);
     return () => clearTimeout(timeout);
   }, [title, categories, entities, relations, todos, versions, activeVersionId, fragmentLinks, editor?.state.doc, isLoaded]);
+
+  useEffect(() => {
+    if (!editor || !isLoaded) return;
+    const doc = editor.getJSON();
+    setChapters(prev => syncChaptersFromDoc(doc, prev, fragmentLinks));
+  }, [editor?.state.doc, fragmentLinks, isLoaded]);
+ 
+  // ─── 6. AGGIUNGI HANDLER createChapter ──────────────────────────────────────
+ 
+  const handleCreateChapter = () => {
+    const title = prompt('Titolo del nuovo capitolo?');
+    if (!title || !editor) return;
+  
+    // Inserisce un H1 in fondo al documento
+    editor.chain()
+      .focus('end')
+      .insertContent({ type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: title }] })
+      .run();
+  };
+  
+  // ─── 7. AGGIUNGI HANDLER commitChapter ──────────────────────────────────────
+  
+  const handleCommitChapter = (chapterId: string, label: string, branch: string) => {
+    if (!editor) return;
+    const doc = editor.getJSON();
+    const chapter = chapters.find(c => c.id === chapterId);
+    if (!chapter) return;
+  
+    const snapshot = createChapterSnapshot(chapter, doc, fragmentLinks, label, branch);
+  
+    setChapters(prev => prev.map(c =>
+      c.id === chapterId
+        ? { ...c, snapshots: [...c.snapshots, snapshot], activeSnapshotId: snapshot.id }
+        : c
+    ));
+  };
+  
+  // ─── 8. AGGIUNGI HANDLER chapterStatusChange ─────────────────────────────────
+  
+  const handleChapterStatusChange = (chapterId: string, status: ChapterStatus) => {
+    setChapters(prev => prev.map(c =>
+      c.id === chapterId ? { ...c, status } : c
+    ));
+  };
+  
+  // ─── 9. AGGIUNGI HANDLER restoreChapterSnapshot ──────────────────────────────
+  
+  const handleRestoreChapterSnapshot = (chapterId: string, snapshot: ChapterSnapshot) => {
+    if (!editor) return;
+    const currentDoc = editor.getJSON();
+    const newDoc = restoreChapterSnapshot(currentDoc, chapterId, snapshot);
+    editor.commands.setContent(newDoc);
+  
+    setChapters(prev => prev.map(c =>
+      c.id === chapterId ? { ...c, activeSnapshotId: snapshot.id } : c
+    ));
+  
+    setHistoryDrawerChapterId(null);
+  };
 
   const navigateToPos = (pos: number) => {
     if (!editor) return;
@@ -187,10 +254,34 @@ export default function App() {
         categories={categories} setCategories={setCategories}
         entities={entities} setEditingEntity={setEditingEntity}
         todos={todos}
+
+        chapters={chapters}
+        activeChapterId={activeChapterId}
+        onSelectChapter={(id) => {
+          setActiveChapterId(id);
+          // Scrolla all'H1 del capitolo nell'editor
+          if (!editor) return;
+          let found = false;
+          editor.state.doc.descendants((node, pos) => {
+            if (found) return false;
+            if (node.type.name === 'heading' && node.attrs.id === id) {
+              navigateToPos(pos);
+              found = true;
+            }
+          });
+        }}
+        onCreateChapter={handleCreateChapter}
+        onCommitChapter={handleCommitChapter}
+        onChapterStatusChange={handleChapterStatusChange}
+        onOpenChapterHistory={(id) => setHistoryDrawerChapterId(id)}
+        
         onAddTodo={(text: string, anchorId?: string) =>
           setTodos(prev => [...prev, { id: anchorId || uid(), text, done: false, anchorId }])}
-        onToggleTodo={(id: string) =>
-          setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t))}
+        onToggleTodo={(id: string) => {
+          setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
+          removeTodoMarkFromEditor(id);
+        }}
+          
         onRemoveTodo={(id: string) => {
           setTodos(prev => prev.filter(t => t.id !== id));
           removeTodoMarkFromEditor(id);
@@ -341,6 +432,17 @@ export default function App() {
           onClose={() => setEditingEntity(null)}
         />
       )}
+
+      {historyDrawerChapterId && (() => {
+        const ch = chapters.find(c => c.id === historyDrawerChapterId);
+        return ch ? (
+          <ChapterHistoryDrawer
+            chapter={ch}
+            onClose={() => setHistoryDrawerChapterId(null)}
+            onRestore={handleRestoreChapterSnapshot}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }
