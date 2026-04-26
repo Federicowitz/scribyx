@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronRight, ChevronDown, Plus, Trash2, GitBranch, Edit3 } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus, Trash2, GitBranch, Edit3, PanelLeftClose } from 'lucide-react';
 import type { Category, Entity, Todo, Chapter, ChapterStatus } from '../types';
 import { uid } from '../editorUtils';
 import { ChapterPanel } from './ChapterPanel';
@@ -20,6 +20,7 @@ function Panel({ title, children, badge }: { title: string, children: React.Reac
 
 export function Sidebar({
   currentView, // Indica se siamo in 'editor', 'versions' o 'graph'
+  onCloseSidebar, // Funzione per entrare in Focus Mode
   
   // ─── VERSIONI ─────────────────────────────
   activeVersion,
@@ -50,9 +51,20 @@ export function Sidebar({
 }: any) {
   return (
     <div className="sidebar">
-      <div className="sidebar-logo">
-        <Edit3 className="logo-mark" size={20} />
-        <span className="logo-text">Narrative.io</span>
+      {/* ── LOGO E BOTTONE CHIUSURA (FOCUS MODE) ── */}
+      <div className="sidebar-logo" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Edit3 className="logo-mark" size={20} />
+          <span className="logo-text">Narrative.io</span>
+        </div>
+        <button 
+          className="icon-btn small" 
+          onClick={onCloseSidebar} 
+          title="Nascondi barra laterale (Focus Mode)"
+          style={{ width: '24px', height: '24px' }}
+        >
+          <PanelLeftClose size={16} />
+        </button>
       </div>
 
       <div className="sb-nav">

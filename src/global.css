@@ -551,8 +551,9 @@ ol {
 
 .editor-area {
   width: 100%;
-  max-width: 740px;
+  max-width: 1024px;
   padding: 48px 40px 80px;
+  transition: max-width 0.3s ease;
 }
 
 .doc-title-input {

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
-import { X, ChevronRight, CheckCircle, Link, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { X, ChevronRight, CheckCircle, Link, PanelLeft } from 'lucide-react';
 
 import { db } from './db';
 import { uid, TodoMark, BlockIdExtension, EntityLinkMark } from './editorUtils';
@@ -26,33 +26,33 @@ export default function App() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   const [title, setTitle] = useState("Il mio capolavoro");
-  const [categories, setCategories] = useState<Category[]>([
+  const[categories, setCategories] = useState<Category[]>([
     { id: 'cat-chars', name: 'Personaggi', icon: 'User' },
     { id: 'cat-locs', name: 'Luoghi', icon: 'Map' },
     { id: 'cat-objs', name: 'Oggetti', icon: 'Box' },
     { id: 'cat-groups', name: 'Gruppi', icon: 'Users' }
   ]);
-  const[entities, setEntities] = useState<Entity[]>([]);
-  const [relations, setRelations] = useState<Relation[]>([]);
+  const [entities, setEntities] = useState<Entity[]>([]);
+  const[relations, setRelations] = useState<Relation[]>([]);
   const [todos, setTodos] = useState<Todo[]>([]);
-  const[versions, setVersions] = useState<Snapshot[]>([]);
-  const [activeVersionId, setActiveVersionId] = useState('');
+  const [versions, setVersions] = useState<Snapshot[]>([]);
+  const[activeVersionId, setActiveVersionId] = useState('');
   const [fragmentLinks, setFragmentLinks] = useState<FragmentLinks>({});
-  const[editingEntity, setEditingEntity] = useState<Entity | null>(null);
+  const [editingEntity, setEditingEntity] = useState<Entity | null>(null);
   const [headings, setHeadings] = useState<{ level: number; text: string; pos: number }[]>([]);
 
   //Roba che serve per sincronizzare i capitoli
-  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const[chapters, setChapters] = useState<Chapter[]>([]);
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
-  const[historyDrawerChapterId, setHistoryDrawerChapterId] = useState<string | null>(null);
+  const [historyDrawerChapterId, setHistoryDrawerChapterId] = useState<string | null>(null);
 
   // Graph snapshots
-  const[graphSnapshots, setGraphSnapshots] = useState<GraphSnapshot[]>([]);
-  const[activeGraphId, setActiveGraphId] = useState<string | null>(null);
+  const [graphSnapshots, setGraphSnapshots] = useState<GraphSnapshot[]>([]);
+  const [activeGraphId, setActiveGraphId] = useState<string | null>(null);
 
   // Menu info (lettura link)
   const[activeLinkId, setActiveLinkId] = useState<string | null>(null);
-  const[menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
 
   // Menu "aggiungi entità" separato
   const [addMoreMenu, setAddMoreMenu] = useState<{
@@ -101,7 +101,6 @@ export default function App() {
     editorRef.current = editor;
   }, [editor]);
 
-  // DB Load
   useEffect(() => {
     db.loadDocument(DOC_ID).then(data => {
       if (data) {
@@ -122,7 +121,6 @@ export default function App() {
     });
   }, [editor]);
 
-  // DB Auto-Save
   useEffect(() => {
     if (!isLoaded || !editor) return;
     const timeout = setTimeout(() => {
@@ -142,7 +140,7 @@ export default function App() {
     if (!editor || !isLoaded) return;
     const doc = editor.getJSON();
     setChapters(prev => syncChaptersFromDoc(doc, prev, fragmentLinks));
-  }, [editor?.state.doc, fragmentLinks, isLoaded]);
+  },[editor?.state.doc, fragmentLinks, isLoaded]);
  
   const handleCommitGlobal = (label: string, branch: string = 'main') => {
     const chapterVersions: Record<string, string> = {};
@@ -257,13 +255,11 @@ export default function App() {
     <div
       className="app-layout"
       style={{
-        margin: 0,
-        padding: 0,
-        width: '100vw',
-        maxWidth: '100%',
-        height: '100vh',
+        position: 'fixed', // Questo bypassa il contenitore max-width del #root di Vite!
+        inset: 0, // Significa top:0, left:0, right:0, bottom:0
         display: 'flex',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        background: 'var(--bg)'
       }}
       onClick={(e) => {
         const target = e.target as HTMLElement;
@@ -277,7 +273,7 @@ export default function App() {
       }}
     >
       
-      {/* ─── SIDEBAR PRINCIPALE (con Wrapper per animazione di scorrimento) ─── */}
+      {/* ─── SIDEBAR PRINCIPALE ─── */}
       <div style={{
         width: mainSidebarOpen ? 'var(--sb-width)' : '0px',
         minWidth: mainSidebarOpen ? 'var(--sb-width)' : '0px',
@@ -286,10 +282,10 @@ export default function App() {
         borderRight: mainSidebarOpen ? '1px solid var(--sb-border)' : 'none',
         flexShrink: 0
       }}>
-        {/* Il width interno fisso previene "schiacciamenti" del contenuto durante l'animazione */}
         <div style={{ width: 'var(--sb-width)', height: '100%' }}>
           <Sidebar
             currentView={view} 
+            onCloseSidebar={() => setMainSidebarOpen(false)} // Passiamo la funzione per chiudere
             headings={headings} navigateToPos={navigateToPos}
             activeVersion={versions.find(v => v.id === activeVersionId)} setView={setView}
             categories={categories} setCategories={setCategories}
@@ -342,34 +338,45 @@ export default function App() {
       {/* ─── AREA CONTENUTO PRINCIPALE ─── */}
       <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         
-        {/* Pulsante Toggle Sidebar (Sempre visibile) */}
-        <button
-          className="icon-btn"
-          onClick={() => setMainSidebarOpen(!mainSidebarOpen)}
-          style={{
-            position: 'absolute',
-            top: '16px',
-            left: '16px',
-            zIndex: 50,
-            background: 'var(--editor-bg)',
-            border: '1px solid var(--border)',
-            boxShadow: 'var(--shadow)',
-            width: '32px',
-            height: '32px'
-          }}
-          title={mainSidebarOpen ? "Nascondi barra laterale (Schermo Intero)" : "Mostra barra laterale"}
-        >
-          {mainSidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeft size={18} />}
-        </button>
+        {/* Pulsante Floating (solo per Grafo o Timeline, quando chiusa) */}
+        {!mainSidebarOpen && view !== 'editor' && (
+          <button
+            className="icon-btn"
+            onClick={() => setMainSidebarOpen(true)}
+            style={{
+              position: 'absolute', top: '16px', left: '16px', zIndex: 50,
+              background: 'var(--editor-bg)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)'
+            }}
+            title="Mostra barra laterale"
+          >
+            <PanelLeft size={18} />
+          </button>
+        )}
 
         {view === 'editor' ? (
           <div className="editor-main">
             <div className="editor-area">
-              <input
-                className="doc-title-input" value={title}
-                onChange={e => setTitle(e.target.value)}
-                placeholder="Titolo del Documento..."
-              />
+              
+              {/* Contenitore Titolo e Bottone Focus */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
+                {!mainSidebarOpen && (
+                  <button
+                    className="icon-btn"
+                    onClick={() => setMainSidebarOpen(true)}
+                    title="Mostra barra laterale"
+                    style={{ background: 'var(--editor-bg)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)', flexShrink: 0 }}
+                  >
+                    <PanelLeft size={18} />
+                  </button>
+                )}
+                <input
+                  className="doc-title-input" value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  placeholder="Titolo del Documento..."
+                  style={{ marginBottom: 0 }} // Override al margin originale
+                />
+              </div>
+
               <div className="editor-wrap">
                 {editor && (
                   <BubbleMenu
@@ -414,7 +421,7 @@ export default function App() {
                   fragmentLinks={fragmentLinks}
                   setFragmentLinks={setFragmentLinks}
                   onOpenEntity={(e) => { closeInfoMenu(); setEditingEntity(e); }}
-                  onAddRelation={(rel: Relation) => setRelations(prev => [...prev, rel])}
+                  onAddRelation={(rel: Relation) => setRelations(prev =>[...prev, rel])}
                   onClose={closeInfoMenu}
                   onAddMore={(excludeIds) => {
                     setAddMoreMenu({
