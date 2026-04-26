@@ -79,10 +79,12 @@ ol {
   width: var(--sb-width);
   min-width: var(--sb-width);
   background: var(--sb-bg);
-  border-right: 1px solid var(--sb-border);
+  /* border-right: 1px solid var(--sb-border); */
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  height: 100%;
+    /* <--- AGGIUNGI QUESTA RIGA! */
 }
 
 .sidebar-logo {
