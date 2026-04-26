@@ -98,7 +98,18 @@ export function Sidebar({
               <div className="char-list">
                 {catEntities.map((e: Entity) => (
                   <div key={e.id} className="char-item" onClick={() => setEditingEntity(e)}>
-                    <div className="char-avatar">{e.avatar}</div>
+                    {e.image ? (
+                      <div 
+                        className="char-avatar has-image" 
+                        style={{ 
+                          backgroundImage: `url(${e.image})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center'
+                        }} 
+                      />
+                    ) : (
+                      <div className="char-avatar">{e.avatar}</div>
+                    )}
                     <div className="char-name">{e.name}</div>
                   </div>
                 ))}
@@ -112,7 +123,7 @@ export function Sidebar({
                       name: '',
                       avatar: '?',
                       desc: '',
-                      fields: []
+                      fields:[]
                     })
                   }
                 >

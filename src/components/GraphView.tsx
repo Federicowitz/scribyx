@@ -21,34 +21,6 @@ import '@xyflow/react/dist/style.css';
 import { ChevronLeft, Plus, Trash2, GripVertical, Edit3, Check, Copy } from 'lucide-react';
 import type { Entity, Category, GraphSnapshot, GraphNodeData, GraphEdgeData } from '../types';
 
-/* ─── Custom Node ───────────────────────────────────────── */
-function EntityNode({ data }: any) {
-  const { entity, category, isInvalid, warnings } = data;
-  return (
-    <div className="graph-entity-node" data-invalid={isInvalid || undefined}>
-      <Handle type="target" position={Position.Top} className="graph-handle" />
-      {entity.image ? (
-        <div className="graph-node-img" style={{ backgroundImage: `url(${entity.image})` }} />
-      ) : (
-        <div className="graph-node-avatar">{entity.avatar}</div>
-      )}
-      <div className="graph-node-name">
-        {entity.name}
-        {entity.avatar && <span className="graph-node-abbr"> ({entity.avatar})</span>}
-      </div>
-      <div className="graph-node-cat">{category?.name}</div>
-      {isInvalid && (
-        <div className="graph-node-warning">
-          {warnings.map((w: string, i: number) => <div key={i}>{w}</div>)}
-        </div>
-      )}
-      <Handle type="source" position={Position.Bottom} className="graph-handle" />
-    </div>
-  );
-}
-
-const nodeTypes = { entityNode: EntityNode };
-
 /* ─── Helpers ───────────────────────────────────────────── */
 const uid = () => Math.random().toString(36).substring(2, 10);
 
@@ -59,6 +31,98 @@ function inferRelationType(sourceCat: string, targetCat: string): string {
   if (s.includes('oggett') && t.includes('oggett')) return 'CONTENUTO_IN';
   return 'STA_IN';
 }
+
+const getCategoryColor = (catName: string = '') => {
+  const name = catName.toLowerCase();
+  if (name.includes('personagg')) return '#ef4444'; // Red
+  if (name.includes('luogh')) return '#22c55e'; // Green
+  if (name.includes('oggett')) return '#f59e0b'; // Yellow
+  if (name.includes('grupp')) return '#6366f1'; // Indigo
+  
+  // Genera un colore random fisso per le altre categorie custom
+  const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const hues =[0, 45, 160, 210, 270, 320];
+  return `hsl(${hues[hash % hues.length]}, 70%, 55%)`;
+};
+
+
+/* ─── Custom Node ───────────────────────────────────────── */
+function EntityNode({ data }: any) {
+  const { entity, category, isInvalid, warnings } = data;
+  const color = getCategoryColor(category?.name);
+
+  return (
+    <div 
+      className="graph-entity-node" 
+      data-invalid={isInvalid || undefined}
+      style={{ 
+        borderTop: `4px solid ${color}`,
+        padding: '10px 14px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px'
+      }}
+    >
+      <Handle type="target" position={Position.Top} className="graph-handle" />
+      
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {entity.image ? (
+          <div 
+            className="graph-node-img" 
+            style={{ 
+              backgroundImage: `url(${entity.image})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              flexShrink: 0
+            }} 
+          />
+        ) : (
+          <div 
+            className="graph-node-avatar"
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              backgroundColor: `${color}15`,
+              color: color,
+              border: `1px solid ${color}40`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 'bold',
+              fontSize: '12px',
+              flexShrink: 0
+            }}
+          >
+            {entity.avatar}
+          </div>
+        )}
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-start' }}>
+          <div className="graph-node-name" style={{ margin: 0, padding: 0, fontSize: '13px', fontWeight: 600 }}>
+            {entity.name}
+          </div>
+          <div className="graph-node-cat" style={{ margin: 0, padding: 0, color: color, background: 'transparent', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            {category?.name}
+          </div>
+        </div>
+      </div>
+
+      {isInvalid && (
+        <div className="graph-node-warning" style={{ marginTop: '4px' }}>
+          {warnings.map((w: string, i: number) => <div key={i}>{w}</div>)}
+        </div>
+      )}
+      <Handle type="source" position={Position.Bottom} className="graph-handle" />
+    </div>
+  );
+}
+
+const nodeTypes = { entityNode: EntityNode };
+
 
 /* ─── Props ─────────────────────────────────────────────── */
 interface GraphViewProps {
@@ -74,12 +138,13 @@ interface GraphViewProps {
 /* ─── Inner Canvas (owns React Flow state) ──────────────── */
 function GraphCanvas({
   activeGraph, entities, categories,
-  onPersistNodes, onPersistEdgeRemove, onPersistEdgeAdd, onDropEntity
+  onPersistNodes, onPersistNodeRemove, onPersistEdgeRemove, onPersistEdgeAdd, onDropEntity
 }: {
   activeGraph: GraphSnapshot;
   entities: Entity[];
   categories: Category[];
   onPersistNodes: (nodes: GraphNodeData[]) => void;
+  onPersistNodeRemove: (nodeIds: string[]) => void;
   onPersistEdgeRemove: (edgeIds: string[]) => void;
   onPersistEdgeAdd: (edge: GraphEdgeData) => void;
   onDropEntity: (entityId: string, position: { x: number; y: number }) => void;
@@ -98,18 +163,18 @@ function GraphCanvas({
       if (name.includes('oggett')) {
         if (outgoing.filter(e => e.type === 'STA_IN').length > 1) {
           invalidNodeIds.add(gn.entityId);
-          nodeWarnings[gn.entityId] = [...(nodeWarnings[gn.entityId] || []), 'Più di un luogo (STA_IN)'];
+          nodeWarnings[gn.entityId] =[...(nodeWarnings[gn.entityId] ||[]), 'Più di un luogo (STA_IN)'];
         }
       }
       if (name.includes('grupp')) {
         if (outgoing.filter(e => e.type === 'APPARTIENE_A').length > 1) {
           invalidNodeIds.add(gn.entityId);
-          nodeWarnings[gn.entityId] = [...(nodeWarnings[gn.entityId] || []), 'Appartiene a più entità'];
+          nodeWarnings[gn.entityId] = [...(nodeWarnings[gn.entityId] ||[]), 'Appartiene a più entità'];
         }
       }
     });
     return { invalidNodeIds, nodeWarnings };
-  }, [entities, categories]);
+  },[entities, categories]);
 
   /* ── Build initial nodes/edges from snapshot ─────────── */
   const { invalidNodeIds, nodeWarnings } = validate(activeGraph.nodes, activeGraph.edges);
@@ -125,7 +190,7 @@ function GraphCanvas({
         entity: ent || { avatar: '?', name: '???', image: undefined },
         category: cat,
         isInvalid: invalidNodeIds.has(gn.entityId),
-        warnings: nodeWarnings[gn.entityId] || [],
+        warnings: nodeWarnings[gn.entityId] ||[],
       }
     };
   });
@@ -141,7 +206,7 @@ function GraphCanvas({
     markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--accent)' },
   }));
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const[nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   // Sync when snapshot data changes externally
@@ -161,14 +226,21 @@ function GraphCanvas({
       return moved ? { ...n, position: moved.position } : n;
     });
     onPersistNodes(updated);
-  }, [activeGraph.nodes, onPersistNodes]);
+  },[activeGraph.nodes, onPersistNodes]);
+
+  /* ── Node removal ───────────────────────────────────── */
+  const handleNodesChange = useCallback((changes: NodeChange[]) => {
+    onNodesChange(changes);
+    const removals = changes.filter(c => c.type === 'remove').map((c: any) => c.id);
+    if (removals.length > 0) onPersistNodeRemove(removals);
+  }, [onNodesChange, onPersistNodeRemove]);
 
   /* ── Edge removal ───────────────────────────────────── */
   const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
     onEdgesChange(changes);
-    const removals = changes.filter(c => c.type === 'remove').map(c => c.id);
+    const removals = changes.filter(c => c.type === 'remove').map((c: any) => c.id);
     if (removals.length > 0) onPersistEdgeRemove(removals);
-  }, [onEdgesChange, onPersistEdgeRemove]);
+  },[onEdgesChange, onPersistEdgeRemove]);
 
   /* ── New connection ─────────────────────────────────── */
   const onConnect = useCallback((params: Connection) => {
@@ -197,7 +269,7 @@ function GraphCanvas({
     };
     setEdges(eds => addEdge(flowEdge, eds));
     onPersistEdgeAdd(newEdge);
-  }, [entities, categories, setEdges, onPersistEdgeAdd]);
+  },[entities, categories, setEdges, onPersistEdgeAdd]);
 
   /* ── Drop entity ────────────────────────────────────── */
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
@@ -205,7 +277,7 @@ function GraphCanvas({
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
-  }, []);
+  },[]);
 
   const onDrop = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -216,7 +288,7 @@ function GraphCanvas({
     // Add to local state immediately
     const ent = entities.find(e => e.id === entityId);
     const cat = ent ? categories.find(c => c.id === ent.categoryId) : null;
-    setNodes(nds => [...nds, {
+    setNodes(nds =>[...nds, {
       id: entityId,
       type: 'entityNode',
       position,
@@ -228,14 +300,14 @@ function GraphCanvas({
       }
     }]);
     onDropEntity(entityId, position);
-  }, [reactFlowInstance, activeGraph.nodes, entities, categories, setNodes, onDropEntity]);
+  },[reactFlowInstance, activeGraph.nodes, entities, categories, setNodes, onDropEntity]);
 
   return (
     <ReactFlow
       nodes={nodes}
       edges={edges}
       nodeTypes={nodeTypes}
-      onNodesChange={onNodesChange}
+      onNodesChange={handleNodesChange}
       onEdgesChange={handleEdgesChange}
       onConnect={onConnect}
       onNodeDragStop={onNodeDragStop}
@@ -268,10 +340,10 @@ export function GraphView({
       label: copyFrom ? `${copyFrom.label} (copia)` : `Snapshot ${graphSnapshots.length + 1}`,
       timestamp: Date.now(),
       order: graphSnapshots.length,
-      nodes: copyFrom ? copyFrom.nodes.map(n => ({ ...n })) : [],
-      edges: copyFrom ? copyFrom.edges.map(e => ({ ...e, id: `edge-${uid()}` })) : [],
+      nodes: copyFrom ? copyFrom.nodes.map(n => ({ ...n })) :[],
+      edges: copyFrom ? copyFrom.edges.map(e => ({ ...e, id: `edge-${uid()}` })) :[],
     };
-    setGraphSnapshots(prev => [...prev, newSnap]);
+    setGraphSnapshots(prev =>[...prev, newSnap]);
     setActiveGraphId(newSnap.id);
   };
 
@@ -293,8 +365,7 @@ export function GraphView({
       const idx = sorted.findIndex(g => g.id === id);
       if (direction === 'up' && idx > 0) {
         [sorted[idx].order, sorted[idx - 1].order] = [sorted[idx - 1].order, sorted[idx].order];
-      } else if (direction === 'down' && idx < sorted.length - 1) {
-        [sorted[idx].order, sorted[idx + 1].order] = [sorted[idx + 1].order, sorted[idx].order];
+      } else if (direction === 'down' && idx < sorted.length - 1) {[sorted[idx].order, sorted[idx + 1].order] = [sorted[idx + 1].order, sorted[idx].order];
       }
       return sorted;
     });
@@ -303,7 +374,20 @@ export function GraphView({
   /* ── Persist callbacks for the canvas ─────────────────── */
   const onPersistNodes = useCallback((nodes: GraphNodeData[]) => {
     setGraphSnapshots(prev => prev.map(g => g.id === activeGraphId ? { ...g, nodes } : g));
-  }, [activeGraphId, setGraphSnapshots]);
+  },[activeGraphId, setGraphSnapshots]);
+
+  const onPersistNodeRemove = useCallback((nodeIds: string[]) => {
+    setGraphSnapshots(prev => prev.map(g => {
+      if (g.id === activeGraphId) {
+        return {
+          ...g,
+          nodes: g.nodes.filter(n => !nodeIds.includes(n.entityId)),
+          edges: g.edges.filter(e => !nodeIds.includes(e.sourceId) && !nodeIds.includes(e.targetId))
+        };
+      }
+      return g;
+    }));
+  },[activeGraphId, setGraphSnapshots]);
 
   const onPersistEdgeRemove = useCallback((edgeIds: string[]) => {
     setGraphSnapshots(prev => prev.map(g =>
@@ -325,11 +409,11 @@ export function GraphView({
 
   /* ── Snapshot list editing state ──────────────────────── */
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingLabel, setEditingLabel] = useState('');
+  const[editingLabel, setEditingLabel] = useState('');
   const [showNewMenu, setShowNewMenu] = useState(false);
 
   /* ── Entities not yet on canvas ──────────────────────── */
-  const entitiesOnCanvas = new Set(activeGraph?.nodes.map(n => n.entityId) || []);
+  const entitiesOnCanvas = new Set(activeGraph?.nodes.map(n => n.entityId) ||[]);
   const availableEntities = entities.filter(e => !entitiesOnCanvas.has(e.id));
 
   const sortedSnapshots = [...graphSnapshots].sort((a, b) => a.order - b.order);
@@ -439,7 +523,18 @@ export function GraphView({
                       >
                         <GripVertical size={12} className="graph-palette-grip" />
                         {ent.image ? (
-                          <span className="graph-palette-img" style={{ backgroundImage: `url(${ent.image})` }} />
+                          <span 
+                            className="graph-palette-img" 
+                            style={{ 
+                              backgroundImage: `url(${ent.image})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                              display: 'inline-block',
+                              width: '20px',
+                              height: '20px',
+                              borderRadius: '50%'
+                            }} 
+                          />
                         ) : (
                           <span className="graph-palette-avatar">{ent.avatar}</span>
                         )}
@@ -466,6 +561,7 @@ export function GraphView({
             entities={entities}
             categories={categories}
             onPersistNodes={onPersistNodes}
+            onPersistNodeRemove={onPersistNodeRemove}
             onPersistEdgeRemove={onPersistEdgeRemove}
             onPersistEdgeAdd={onPersistEdgeAdd}
             onDropEntity={onDropEntity}
