@@ -18,7 +18,7 @@ import type {
   Connection
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ChevronLeft, Plus, Trash2, GripVertical, Edit3, Check, Copy } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2, GripVertical, Edit3, Check, Copy } from 'lucide-react';
 import type { Entity, Category, GraphSnapshot, GraphNodeData, GraphEdgeData } from '../types';
 
 /* ─── Helpers ───────────────────────────────────────────── */
@@ -34,17 +34,15 @@ function inferRelationType(sourceCat: string, targetCat: string): string {
 
 const getCategoryColor = (catName: string = '') => {
   const name = catName.toLowerCase();
-  if (name.includes('personagg')) return '#ef4444'; // Red
-  if (name.includes('luogh')) return '#22c55e'; // Green
-  if (name.includes('oggett')) return '#f59e0b'; // Yellow
-  if (name.includes('grupp')) return '#6366f1'; // Indigo
+  if (name.includes('personagg')) return '#ef4444'; 
+  if (name.includes('luogh')) return '#22c55e'; 
+  if (name.includes('oggett')) return '#f59e0b'; 
+  if (name.includes('grupp')) return '#6366f1'; 
   
-  // Genera un colore random fisso per le altre categorie custom
   const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const hues =[0, 45, 160, 210, 270, 320];
   return `hsl(${hues[hash % hues.length]}, 70%, 55%)`;
 };
-
 
 /* ─── Custom Node ───────────────────────────────────────── */
 function EntityNode({ data }: any) {
@@ -132,7 +130,6 @@ interface GraphViewProps {
   setGraphSnapshots: React.Dispatch<React.SetStateAction<GraphSnapshot[]>>;
   activeGraphId: string | null;
   setActiveGraphId: React.Dispatch<React.SetStateAction<string | null>>;
-  onBack: () => void;
 }
 
 /* ─── Inner Canvas (owns React Flow state) ──────────────── */
@@ -149,7 +146,6 @@ function GraphCanvas({
   onPersistEdgeAdd: (edge: GraphEdgeData) => void;
   onDropEntity: (entityId: string, position: { x: number; y: number }) => void;
 }) {
-  /* ── Validation ─────────────────────────────────────── */
   const validate = useCallback((graphNodes: GraphNodeData[], graphEdges: GraphEdgeData[]) => {
     const invalidNodeIds = new Set<string>();
     const nodeWarnings: Record<string, string[]> = {};
@@ -163,20 +159,19 @@ function GraphCanvas({
       if (name.includes('oggett')) {
         if (outgoing.filter(e => e.type === 'STA_IN').length > 1) {
           invalidNodeIds.add(gn.entityId);
-          nodeWarnings[gn.entityId] =[...(nodeWarnings[gn.entityId] ||[]), 'Più di un luogo (STA_IN)'];
+          nodeWarnings[gn.entityId] = [...(nodeWarnings[gn.entityId] ||[]), 'Più di un luogo (STA_IN)'];
         }
       }
       if (name.includes('grupp')) {
         if (outgoing.filter(e => e.type === 'APPARTIENE_A').length > 1) {
           invalidNodeIds.add(gn.entityId);
-          nodeWarnings[gn.entityId] = [...(nodeWarnings[gn.entityId] ||[]), 'Appartiene a più entità'];
+          nodeWarnings[gn.entityId] =[...(nodeWarnings[gn.entityId] ||[]), 'Appartiene a più entità'];
         }
       }
     });
     return { invalidNodeIds, nodeWarnings };
-  },[entities, categories]);
+  }, [entities, categories]);
 
-  /* ── Build initial nodes/edges from snapshot ─────────── */
   const { invalidNodeIds, nodeWarnings } = validate(activeGraph.nodes, activeGraph.edges);
 
   const initialNodes: Node[] = activeGraph.nodes.map(gn => {
@@ -206,10 +201,9 @@ function GraphCanvas({
     markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--accent)' },
   }));
 
-  const[nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  // Sync when snapshot data changes externally
   const lastSnapId = useRef(activeGraph.id);
   const lastSnapTimestamp = useRef(activeGraph.timestamp);
   if (activeGraph.id !== lastSnapId.current || activeGraph.nodes.length !== nodes.length) {
@@ -219,30 +213,26 @@ function GraphCanvas({
     setEdges(initialEdges);
   }
 
-  /* ── Persist node positions on drag end ─────────────── */
   const onNodeDragStop = useCallback((_event: any, _node: any, draggedNodes: Node[]) => {
     const updated: GraphNodeData[] = activeGraph.nodes.map(n => {
       const moved = draggedNodes.find(d => d.id === n.entityId);
       return moved ? { ...n, position: moved.position } : n;
     });
     onPersistNodes(updated);
-  },[activeGraph.nodes, onPersistNodes]);
+  }, [activeGraph.nodes, onPersistNodes]);
 
-  /* ── Node removal ───────────────────────────────────── */
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
     onNodesChange(changes);
     const removals = changes.filter(c => c.type === 'remove').map((c: any) => c.id);
     if (removals.length > 0) onPersistNodeRemove(removals);
   }, [onNodesChange, onPersistNodeRemove]);
 
-  /* ── Edge removal ───────────────────────────────────── */
   const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
     onEdgesChange(changes);
     const removals = changes.filter(c => c.type === 'remove').map((c: any) => c.id);
     if (removals.length > 0) onPersistEdgeRemove(removals);
   },[onEdgesChange, onPersistEdgeRemove]);
 
-  /* ── New connection ─────────────────────────────────── */
   const onConnect = useCallback((params: Connection) => {
     if (!params.source || !params.target) return;
     const sourceEnt = entities.find(e => e.id === params.source);
@@ -271,7 +261,6 @@ function GraphCanvas({
     onPersistEdgeAdd(newEdge);
   },[entities, categories, setEdges, onPersistEdgeAdd]);
 
-  /* ── Drop entity ────────────────────────────────────── */
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -285,7 +274,6 @@ function GraphCanvas({
     if (!entityId || !reactFlowInstance) return;
     if (activeGraph.nodes.some(n => n.entityId === entityId)) return;
     const position = reactFlowInstance.screenToFlowPosition({ x: event.clientX, y: event.clientY });
-    // Add to local state immediately
     const ent = entities.find(e => e.id === entityId);
     const cat = ent ? categories.find(c => c.id === ent.categoryId) : null;
     setNodes(nds =>[...nds, {
@@ -327,13 +315,12 @@ function GraphCanvas({
 export function GraphView({
   entities, categories,
   graphSnapshots, setGraphSnapshots,
-  activeGraphId, setActiveGraphId,
-  onBack
+  activeGraphId, setActiveGraphId
 }: GraphViewProps) {
 
   const activeGraph = graphSnapshots.find(g => g.id === activeGraphId) || null;
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  /* ── Snapshot CRUD ────────────────────────────────────── */
   const createSnapshot = (copyFrom?: GraphSnapshot) => {
     const newSnap: GraphSnapshot = {
       id: uid(),
@@ -341,9 +328,9 @@ export function GraphView({
       timestamp: Date.now(),
       order: graphSnapshots.length,
       nodes: copyFrom ? copyFrom.nodes.map(n => ({ ...n })) :[],
-      edges: copyFrom ? copyFrom.edges.map(e => ({ ...e, id: `edge-${uid()}` })) :[],
+      edges: copyFrom ? copyFrom.edges.map(e => ({ ...e, id: `edge-${uid()}` })) : [],
     };
-    setGraphSnapshots(prev =>[...prev, newSnap]);
+    setGraphSnapshots(prev => [...prev, newSnap]);
     setActiveGraphId(newSnap.id);
   };
 
@@ -365,16 +352,16 @@ export function GraphView({
       const idx = sorted.findIndex(g => g.id === id);
       if (direction === 'up' && idx > 0) {
         [sorted[idx].order, sorted[idx - 1].order] = [sorted[idx - 1].order, sorted[idx].order];
-      } else if (direction === 'down' && idx < sorted.length - 1) {[sorted[idx].order, sorted[idx + 1].order] = [sorted[idx + 1].order, sorted[idx].order];
+      } else if (direction === 'down' && idx < sorted.length - 1) {
+        [sorted[idx].order, sorted[idx + 1].order] = [sorted[idx + 1].order, sorted[idx].order];
       }
       return sorted;
     });
   };
 
-  /* ── Persist callbacks for the canvas ─────────────────── */
   const onPersistNodes = useCallback((nodes: GraphNodeData[]) => {
     setGraphSnapshots(prev => prev.map(g => g.id === activeGraphId ? { ...g, nodes } : g));
-  },[activeGraphId, setGraphSnapshots]);
+  }, [activeGraphId, setGraphSnapshots]);
 
   const onPersistNodeRemove = useCallback((nodeIds: string[]) => {
     setGraphSnapshots(prev => prev.map(g => {
@@ -387,7 +374,7 @@ export function GraphView({
       }
       return g;
     }));
-  },[activeGraphId, setGraphSnapshots]);
+  }, [activeGraphId, setGraphSnapshots]);
 
   const onPersistEdgeRemove = useCallback((edgeIds: string[]) => {
     setGraphSnapshots(prev => prev.map(g =>
@@ -405,155 +392,177 @@ export function GraphView({
     setGraphSnapshots(prev => prev.map(g =>
       g.id === activeGraphId ? { ...g, nodes: [...g.nodes, { entityId, position }] } : g
     ));
-  }, [activeGraphId, setGraphSnapshots]);
+  },[activeGraphId, setGraphSnapshots]);
 
-  /* ── Snapshot list editing state ──────────────────────── */
   const [editingId, setEditingId] = useState<string | null>(null);
-  const[editingLabel, setEditingLabel] = useState('');
-  const [showNewMenu, setShowNewMenu] = useState(false);
+  const [editingLabel, setEditingLabel] = useState('');
+  const[showNewMenu, setShowNewMenu] = useState(false);
 
-  /* ── Entities not yet on canvas ──────────────────────── */
   const entitiesOnCanvas = new Set(activeGraph?.nodes.map(n => n.entityId) ||[]);
   const availableEntities = entities.filter(e => !entitiesOnCanvas.has(e.id));
 
   const sortedSnapshots = [...graphSnapshots].sort((a, b) => a.order - b.order);
 
   return (
-    <div className="graph-layout">
-      {/* ── Left panel: snapshots + entities ────────────── */}
-      <div className="graph-sidebar">
-        <div className="graph-sidebar-header">
-          <button className="btn-ghost" onClick={onBack} style={{ padding: '4px 8px' }}>
-            <ChevronLeft size={16} /> Editor
-          </button>
-          <span className="graph-sidebar-title">Grafo</span>
-        </div>
-
-        {/* Snapshot list */}
-        <div className="graph-section">
-          <div className="graph-section-header">
-            <span>Snapshot</span>
-            <div style={{ position: 'relative' }}>
-              <button className="graph-add-btn" onClick={() => setShowNewMenu(!showNewMenu)} title="Nuovo snapshot">
-                <Plus size={14} />
+    <div className="graph-layout" style={{ flex: 1, display: 'flex', width: '100%', overflow: 'hidden' }}>
+      
+      {/* ── Pannello a scomparsa ─────────────────────────── */}
+      <div 
+        className="graph-sidebar" 
+        style={{ 
+          width: sidebarOpen ? '280px' : '48px',
+          minWidth: sidebarOpen ? '280px' : '48px',
+          transition: 'all 0.2s ease',
+          display: 'flex',
+          flexDirection: 'column',
+          borderRight: '1px solid var(--border)',
+          background: 'var(--panel-bg)',
+          overflow: 'hidden'
+        }}
+      >
+        {sidebarOpen ? (
+          <>
+            <div className="graph-sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="graph-sidebar-title">Strumenti Grafo</span>
+              <button className="icon-btn" onClick={() => setSidebarOpen(false)} title="Nascondi pannello grafo">
+                <ChevronLeft size={16} />
               </button>
-              {showNewMenu && (
-                <div className="graph-new-menu">
-                  <button className="graph-new-menu-item" onClick={() => { createSnapshot(); setShowNewMenu(false); }}>
-                    <Plus size={12} /> Vuoto
+            </div>
+
+            <div className="graph-section">
+              <div className="graph-section-header">
+                <span>Snapshot</span>
+                <div style={{ position: 'relative' }}>
+                  <button className="graph-add-btn" onClick={() => setShowNewMenu(!showNewMenu)} title="Nuovo snapshot">
+                    <Plus size={14} />
                   </button>
-                  {activeGraph && (
-                    <button className="graph-new-menu-item" onClick={() => { createSnapshot(activeGraph); setShowNewMenu(false); }}>
-                      <Copy size={12} /> Copia attuale
-                    </button>
+                  {showNewMenu && (
+                    <div className="graph-new-menu">
+                      <button className="graph-new-menu-item" onClick={() => { createSnapshot(); setShowNewMenu(false); }}>
+                        <Plus size={12} /> Vuoto
+                      </button>
+                      {activeGraph && (
+                        <button className="graph-new-menu-item" onClick={() => { createSnapshot(activeGraph); setShowNewMenu(false); }}>
+                          <Copy size={12} /> Copia attuale
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-          </div>
-          <div className="graph-snap-list">
-            {sortedSnapshots.map((snap) => (
-              <div
-                key={snap.id}
-                className={`graph-snap-item ${snap.id === activeGraphId ? 'active' : ''}`}
-                onClick={() => setActiveGraphId(snap.id)}
-              >
-                {editingId === snap.id ? (
-                  <div className="graph-snap-edit-row">
-                    <input
-                      className="graph-snap-edit-input"
-                      value={editingLabel}
-                      onChange={e => setEditingLabel(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') { renameSnapshot(snap.id, editingLabel); setEditingId(null); }
-                        if (e.key === 'Escape') setEditingId(null);
-                      }}
-                      autoFocus
-                      onClick={e => e.stopPropagation()}
-                    />
-                    <button className="graph-snap-icon-btn" onClick={(e) => { e.stopPropagation(); renameSnapshot(snap.id, editingLabel); setEditingId(null); }}>
-                      <Check size={12} />
-                    </button>
+              </div>
+              <div className="graph-snap-list">
+                {sortedSnapshots.map((snap) => (
+                  <div
+                    key={snap.id}
+                    className={`graph-snap-item ${snap.id === activeGraphId ? 'active' : ''}`}
+                    onClick={() => setActiveGraphId(snap.id)}
+                  >
+                    {editingId === snap.id ? (
+                      <div className="graph-snap-edit-row">
+                        <input
+                          className="graph-snap-edit-input"
+                          value={editingLabel}
+                          onChange={e => setEditingLabel(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') { renameSnapshot(snap.id, editingLabel); setEditingId(null); }
+                            if (e.key === 'Escape') setEditingId(null);
+                          }}
+                          autoFocus
+                          onClick={e => e.stopPropagation()}
+                        />
+                        <button className="graph-snap-icon-btn" onClick={(e) => { e.stopPropagation(); renameSnapshot(snap.id, editingLabel); setEditingId(null); }}>
+                          <Check size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="graph-snap-label">{snap.label}</span>
+                        <div className="graph-snap-actions">
+                          <button className="graph-snap-icon-btn" onClick={(e) => { e.stopPropagation(); moveSnapshot(snap.id, 'up'); }} title="Sposta su">▲</button>
+                          <button className="graph-snap-icon-btn" onClick={(e) => { e.stopPropagation(); moveSnapshot(snap.id, 'down'); }} title="Sposta giù">▼</button>
+                          <button className="graph-snap-icon-btn" onClick={(e) => { e.stopPropagation(); setEditingId(snap.id); setEditingLabel(snap.label); }} title="Rinomina">
+                            <Edit3 size={12} />
+                          </button>
+                          <button className="graph-snap-icon-btn danger" onClick={(e) => { e.stopPropagation(); deleteSnapshot(snap.id); }} title="Elimina">
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
-                ) : (
-                  <>
-                    <span className="graph-snap-label">{snap.label}</span>
-                    <div className="graph-snap-actions">
-                      <button className="graph-snap-icon-btn" onClick={(e) => { e.stopPropagation(); moveSnapshot(snap.id, 'up'); }} title="Sposta su">▲</button>
-                      <button className="graph-snap-icon-btn" onClick={(e) => { e.stopPropagation(); moveSnapshot(snap.id, 'down'); }} title="Sposta giù">▼</button>
-                      <button className="graph-snap-icon-btn" onClick={(e) => { e.stopPropagation(); setEditingId(snap.id); setEditingLabel(snap.label); }} title="Rinomina">
-                        <Edit3 size={12} />
-                      </button>
-                      <button className="graph-snap-icon-btn danger" onClick={(e) => { e.stopPropagation(); deleteSnapshot(snap.id); }} title="Elimina">
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </>
+                ))}
+                {sortedSnapshots.length === 0 && (
+                  <div className="graph-empty-hint">Nessun snapshot. Creane uno per iniziare.</div>
                 )}
               </div>
-            ))}
-            {sortedSnapshots.length === 0 && (
-              <div className="graph-empty-hint">Nessun snapshot. Creane uno per iniziare.</div>
-            )}
-          </div>
-        </div>
-
-        {/* Entity palette (drag onto canvas) */}
-        {activeGraph && (
-          <div className="graph-section" style={{ flex: 1, overflow: 'hidden' }}>
-            <div className="graph-section-header">
-              <span>Entità</span>
             </div>
-            <div className="graph-entity-palette" style={{ maxHeight: 'none', flex: 1 }}>
-              {categories.map(cat => {
-                const catEntities = availableEntities.filter(e => e.categoryId === cat.id);
-                if (catEntities.length === 0) return null;
-                return (
-                  <div key={cat.id}>
-                    <div className="graph-palette-cat">{cat.name}</div>
-                    {catEntities.map(ent => (
-                      <div
-                        key={ent.id}
-                        className="graph-palette-entity"
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData('application/entity-id', ent.id);
-                          e.dataTransfer.effectAllowed = 'move';
-                        }}
-                      >
-                        <GripVertical size={12} className="graph-palette-grip" />
-                        {ent.image ? (
-                          <span 
-                            className="graph-palette-img" 
-                            style={{ 
-                              backgroundImage: `url(${ent.image})`,
-                              backgroundSize: 'cover',
-                              backgroundPosition: 'center',
-                              display: 'inline-block',
-                              width: '20px',
-                              height: '20px',
-                              borderRadius: '50%'
-                            }} 
-                          />
-                        ) : (
-                          <span className="graph-palette-avatar">{ent.avatar}</span>
-                        )}
-                        <span className="graph-palette-name">{ent.name}</span>
+
+            {activeGraph && (
+              <div className="graph-section" style={{ flex: 1, overflow: 'hidden' }}>
+                <div className="graph-section-header">
+                  <span>Entità</span>
+                </div>
+                <div className="graph-entity-palette" style={{ maxHeight: 'none', flex: 1 }}>
+                  {categories.map(cat => {
+                    const catEntities = availableEntities.filter(e => e.categoryId === cat.id);
+                    if (catEntities.length === 0) return null;
+                    return (
+                      <div key={cat.id}>
+                        <div className="graph-palette-cat">{cat.name}</div>
+                        {catEntities.map(ent => (
+                          <div
+                            key={ent.id}
+                            className="graph-palette-entity"
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData('application/entity-id', ent.id);
+                              e.dataTransfer.effectAllowed = 'move';
+                            }}
+                          >
+                            <GripVertical size={12} className="graph-palette-grip" />
+                            {ent.image ? (
+                              <span 
+                                className="graph-palette-img" 
+                                style={{ 
+                                  backgroundImage: `url(${ent.image})`,
+                                  backgroundSize: 'cover',
+                                  backgroundPosition: 'center',
+                                  display: 'inline-block',
+                                  width: '20px',
+                                  height: '20px',
+                                  borderRadius: '50%'
+                                }} 
+                              />
+                            ) : (
+                              <span className="graph-palette-avatar">{ent.avatar}</span>
+                            )}
+                            <span className="graph-palette-name">{ent.name}</span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                );
-              })}
-              {availableEntities.length === 0 && (
-                <div className="graph-empty-hint">Tutte le entità sono sul canvas.</div>
-              )}
+                    );
+                  })}
+                  {availableEntities.length === 0 && (
+                    <div className="graph-empty-hint">Tutte le entità sono sul canvas.</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 0', height: '100%' }}>
+            <button className="icon-btn" onClick={() => setSidebarOpen(true)} title="Mostra pannello grafo">
+              <ChevronRight size={16} />
+            </button>
+            <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', color: 'var(--text-muted)', fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase', marginTop: '24px' }}>
+              Strumenti Grafo
             </div>
           </div>
         )}
       </div>
 
       {/* ── Canvas ──────────────────────────────────────── */}
-      <div className="graph-canvas-wrap">
+      <div className="graph-canvas-wrap" style={{ flex: 1, position: 'relative', width: '100%', height: '100%' }}>
         {activeGraph ? (
           <GraphCanvas
             key={activeGraph.id}

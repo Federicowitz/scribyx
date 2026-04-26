@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
-import { X, ChevronRight, CheckCircle, Link } from 'lucide-react';
+import { X, ChevronRight, CheckCircle, Link, PanelLeftClose, PanelLeft } from 'lucide-react';
 
 import { db } from './db';
 import { uid, TodoMark, BlockIdExtension, EntityLinkMark } from './editorUtils';
@@ -22,6 +22,7 @@ const DOC_ID = 'main-workspace';
 
 export default function App() {
   const [view, setView] = useState<'editor' | 'versions' | 'graph'>('editor');
+  const [mainSidebarOpen, setMainSidebarOpen] = useState(true); // Stato per il Full Screen
   const [isLoaded, setIsLoaded] = useState(false);
 
   const [title, setTitle] = useState("Il mio capolavoro");
@@ -31,27 +32,27 @@ export default function App() {
     { id: 'cat-objs', name: 'Oggetti', icon: 'Box' },
     { id: 'cat-groups', name: 'Gruppi', icon: 'Users' }
   ]);
-  const [entities, setEntities] = useState<Entity[]>([]);
+  const[entities, setEntities] = useState<Entity[]>([]);
   const [relations, setRelations] = useState<Relation[]>([]);
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [versions, setVersions] = useState<Snapshot[]>([]);
+  const[versions, setVersions] = useState<Snapshot[]>([]);
   const [activeVersionId, setActiveVersionId] = useState('');
   const [fragmentLinks, setFragmentLinks] = useState<FragmentLinks>({});
-  const [editingEntity, setEditingEntity] = useState<Entity | null>(null);
+  const[editingEntity, setEditingEntity] = useState<Entity | null>(null);
   const [headings, setHeadings] = useState<{ level: number; text: string; pos: number }[]>([]);
 
   //Roba che serve per sincronizzare i capitoli
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
-  const [historyDrawerChapterId, setHistoryDrawerChapterId] = useState<string | null>(null);
+  const[historyDrawerChapterId, setHistoryDrawerChapterId] = useState<string | null>(null);
 
   // Graph snapshots
-  const [graphSnapshots, setGraphSnapshots] = useState<GraphSnapshot[]>([]);
-  const [activeGraphId, setActiveGraphId] = useState<string | null>(null);
+  const[graphSnapshots, setGraphSnapshots] = useState<GraphSnapshot[]>([]);
+  const[activeGraphId, setActiveGraphId] = useState<string | null>(null);
 
   // Menu info (lettura link)
-  const [activeLinkId, setActiveLinkId] = useState<string | null>(null);
-  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const[activeLinkId, setActiveLinkId] = useState<string | null>(null);
+  const[menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
 
   // Menu "aggiungi entità" separato
   const [addMoreMenu, setAddMoreMenu] = useState<{
@@ -66,7 +67,7 @@ export default function App() {
     extensions: [StarterKit, TodoMark, BlockIdExtension, EntityLinkMark],
     content: '',
     onUpdate: ({ editor }) => {
-      const newHeadings: any[] = [];
+      const newHeadings: any[] =[];
       editor.state.doc.descendants((node, pos) => {
         if (node.type.name === 'heading')
           newHeadings.push({ level: node.attrs.level, text: node.textContent, pos, id: node.attrs.id });
@@ -76,7 +77,6 @@ export default function App() {
     editorProps: {
       handleClick(view, pos, event) {
         const $pos = view.state.doc.resolve(pos);
-        console.log(pos);
         const marks = $pos.marks();
         const linkMark = marks.find(m => m.type.name === 'entityLink');
 
@@ -85,7 +85,7 @@ export default function App() {
           const rect = target.getBoundingClientRect();
           setActiveLinkId(linkMark.attrs.linkId);
           setMenuPos({ x: rect.left + rect.width / 2, y: rect.bottom + 8 });
-          setAddMoreMenu(null); // chiudi eventuale menu aggiungi aperto
+          setAddMoreMenu(null); 
           return true;
         } else {
           setActiveLinkId(null);
@@ -136,7 +136,7 @@ export default function App() {
       });
     }, 1000);
     return () => clearTimeout(timeout);
-  }, [title, categories, entities, relations, todos, versions, activeVersionId, fragmentLinks, editor?.state.doc, isLoaded, graphSnapshots, activeGraphId]);
+  },[title, categories, entities, relations, todos, versions, activeVersionId, fragmentLinks, editor?.state.doc, isLoaded, graphSnapshots, activeGraphId]);
 
   useEffect(() => {
     if (!editor || !isLoaded) return;
@@ -151,26 +151,21 @@ export default function App() {
     });
     const snap: Snapshot = {
       id: uid(), parentId: activeVersionId, label, branch, timestamp: Date.now(),
-      data: { title, content: editor?.getJSON(), categories, entities, relations, todos, fragmentLinks, chapterVersions, graphSnapshots }
+      data: { title, content: editor?.getJSON(), categories, entities, relations, todos, chapterVersions }
     };
     setVersions(prev => [...prev, snap]);
     setActiveVersionId(snap.id);
   };
 
-  // ─── 6. AGGIUNGI HANDLER createChapter ──────────────────────────────────────
- 
   const handleCreateChapter = () => {
     const title = prompt('Titolo del nuovo capitolo?');
     if (!title || !editor) return;
   
-    // Inserisce un H1 in fondo al documento
     editor.chain()
       .focus('end')
-      .insertContent({ type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: title }] })
+      .insertContent({ type: 'heading', attrs: { level: 1 }, content:[{ type: 'text', text: title }] })
       .run();
   };
-  
-  // ─── 7. AGGIUNGI HANDLER commitChapter ──────────────────────────────────────
   
   const handleCommitChapter = (chapterId: string, label: string, branch: string) => {
     if (!editor) return;
@@ -187,21 +182,21 @@ export default function App() {
     ));
   };
   
-  // ─── 8. AGGIUNGI HANDLER chapterStatusChange ─────────────────────────────────
-  
   const handleChapterStatusChange = (chapterId: string, status: ChapterStatus) => {
     setChapters(prev => prev.map(c =>
       c.id === chapterId ? { ...c, status } : c
     ));
   };
   
-  // ─── 9. AGGIUNGI HANDLER restoreChapterSnapshot ──────────────────────────────
-  
   const handleRestoreChapterSnapshot = (chapterId: string, snapshot: ChapterSnapshot) => {
     if (!editor) return;
     const currentDoc = editor.getJSON();
     const newDoc = restoreChapterSnapshot(currentDoc, chapterId, snapshot);
     editor.commands.setContent(newDoc);
+  
+    if (snapshot.fragmentLinks) {
+      setFragmentLinks(prev => ({ ...prev, ...snapshot.fragmentLinks }));
+    }
   
     setChapters(prev => prev.map(c =>
       c.id === chapterId ? { ...c, activeSnapshotId: snapshot.id } : c
@@ -258,33 +253,18 @@ export default function App() {
 
   if (!isLoaded) return <div>Caricamento...</div>;
 
-  if (view === 'graph') {
-    return (
-      <>
-        <GraphView
-          entities={entities}
-          categories={categories}
-          graphSnapshots={graphSnapshots}
-          setGraphSnapshots={setGraphSnapshots}
-          activeGraphId={activeGraphId}
-          setActiveGraphId={setActiveGraphId}
-          onBack={() => setView('editor')}
-        />
-        {editingEntity && (
-          <EntityModal
-            entity={editingEntity}
-            onSave={handleSaveEntity}
-            onDelete={handleDeleteEntity}
-            onClose={() => setEditingEntity(null)}
-          />
-        )}
-      </>
-    );
-  }
-
   return (
     <div
       className="app-layout"
+      style={{
+        margin: 0,
+        padding: 0,
+        width: '100vw',
+        maxWidth: '100%',
+        height: '100vh',
+        display: 'flex',
+        overflow: 'hidden'
+      }}
       onClick={(e) => {
         const target = e.target as HTMLElement;
         if (
@@ -296,183 +276,228 @@ export default function App() {
         }
       }}
     >
-      <Sidebar
-        headings={headings} navigateToPos={navigateToPos}
-        activeVersion={versions.find(v => v.id === activeVersionId)} setView={setView}
-        categories={categories} setCategories={setCategories}
-        entities={entities} setEditingEntity={setEditingEntity}
-        todos={todos}
+      
+      {/* ─── SIDEBAR PRINCIPALE (con Wrapper per animazione di scorrimento) ─── */}
+      <div style={{
+        width: mainSidebarOpen ? 'var(--sb-width)' : '0px',
+        minWidth: mainSidebarOpen ? 'var(--sb-width)' : '0px',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        overflow: 'hidden',
+        borderRight: mainSidebarOpen ? '1px solid var(--sb-border)' : 'none',
+        flexShrink: 0
+      }}>
+        {/* Il width interno fisso previene "schiacciamenti" del contenuto durante l'animazione */}
+        <div style={{ width: 'var(--sb-width)', height: '100%' }}>
+          <Sidebar
+            currentView={view} 
+            headings={headings} navigateToPos={navigateToPos}
+            activeVersion={versions.find(v => v.id === activeVersionId)} setView={setView}
+            categories={categories} setCategories={setCategories}
+            entities={entities} setEditingEntity={setEditingEntity}
+            todos={todos}
 
-        chapters={chapters}
-        activeChapterId={activeChapterId}
-        onSelectChapter={(id) => {
-          setActiveChapterId(id);
-          // Scrolla all'H1 del capitolo nell'editor
-          if (!editor) return;
-          let found = false;
-          editor.state.doc.descendants((node, pos) => {
-            if (found) return false;
-            if (node.type.name === 'heading' && node.attrs.id === id) {
-              navigateToPos(pos);
-              found = true;
-            }
-          });
-        }}
-        onCreateChapter={handleCreateChapter}
-        onCommitChapter={handleCommitChapter}
-        onChapterStatusChange={handleChapterStatusChange}
-        onOpenChapterHistory={(id) => setHistoryDrawerChapterId(id)}
-        
-        onAddTodo={(text: string, anchorId?: string) =>
-          setTodos(prev => [...prev, { id: anchorId || uid(), text, done: false, anchorId }])}
-        onToggleTodo={(id: string) => {
-          setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
-          removeTodoMarkFromEditor(id);
-        }}
-          
-        onRemoveTodo={(id: string) => {
-          setTodos(prev => prev.filter(t => t.id !== id));
-          removeTodoMarkFromEditor(id);
-        }}
-        onNavigateTodo={(todoId: string) => {
-          if (!editor) return;
-          let foundPos = -1;
-          editor.state.doc.descendants((node, pos) => {
-            if (node.marks.find((m: any) => m.type.name === 'todoMark' && m.attrs.todoId === todoId))
-              foundPos = pos;
-          });
-          if (foundPos !== -1) navigateToPos(foundPos);
-        }}
-      />
-
-      {view === 'editor' ? (
-        <div className="editor-main">
-          <div className="editor-area">
-            <input
-              className="doc-title-input" value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="Titolo del Documento..."
-            />
-            <div className="editor-wrap">
-              {editor && (
-                <BubbleMenu
-                  editor={editor}
-                  className="bubble-menu"
-                  tippyOptions={{ duration: 100 } as any}
-                  shouldShow={({ from, to }) => {
-                    if (from === to) return false;
-                    return !editor.isActive('entityLink');
-                  }}
-                >
-                  <EditorBubbleMenu
-                    editor={editor}
-                    categories={categories}
-                    entities={entities}
-                    fragmentLinks={fragmentLinks}
-                    setFragmentLinks={setFragmentLinks}
-                    onAddTodo={(txt: string, id?: string) =>
-                      setTodos(prev => [...prev, { id: id || uid(), text: txt, done: false, anchorId: id }])}
-                    onAddRelation={(rel: Relation) =>
-                      setRelations(prev => [...prev, rel])}
-                  />
-                </BubbleMenu>
-              )}
-              <EditorContent editor={editor} />
-            </div>
-          </div>
-
-          {/* Menu INFO */}
-          {activeLinkId && menuPos && (
-            <div
-              key={activeLinkId}
-              className="bm-info-menu"
-              style={{
-                position: 'fixed',
-                left: menuPos.x,
-                top: menuPos.y,
-                transform: 'translateX(-50%)',
-                zIndex: 1000,
-              }}
-              onClick={e => e.stopPropagation()}
-            >
-              <EntityInfoMenu
-                linkId={activeLinkId}
-                editor={editorRef.current}
-                entities={entities}
-                categories={categories}
-                fragmentLinks={fragmentLinks}
-                setFragmentLinks={setFragmentLinks}
-                onOpenEntity={(e) => { closeInfoMenu(); setEditingEntity(e); }}
-                onAddRelation={(rel: Relation) => setRelations(prev => [...prev, rel])}
-                onClose={closeInfoMenu}
-                onAddMore={(excludeIds) => {
-                  setAddMoreMenu({
-                    linkId: activeLinkId!,
-                    excludeIds,
-                    pos: { x: menuPos!.x, y: menuPos!.y + 10 } // leggermente sotto
-                  });
-                  setActiveLinkId(null);
-                  setMenuPos(null);
-                }}
-              />
-            </div>
-          )}
-
-          {/* Menu AGGIUNGI ENTITÀ */}
-          {addMoreMenu && (
-            <div
-              className="bm-add-more-menu bm-info-menu"
-              style={{
-                position: 'fixed',
-                left: addMoreMenu.pos.x,
-                top: addMoreMenu.pos.y,
-                transform: 'translateX(-50%)',
-                zIndex: 1001,
-              }}
-              onClick={e => e.stopPropagation()}
-            >
-              <AddEntityMenu
-                linkId={addMoreMenu.linkId}
-                excludeIds={addMoreMenu.excludeIds}
-                categories={categories}
-                entities={entities}
-                fragmentLinks={fragmentLinks}
-                setFragmentLinks={setFragmentLinks}
-                onAddRelation={(rel: Relation) => setRelations(prev => [...prev, rel])}
-                onClose={() => setAddMoreMenu(null)}
-              />
-            </div>
-          )}
+            chapters={chapters}
+            activeChapterId={activeChapterId}
+            onSelectChapter={(id: string) => {
+              setActiveChapterId(id);
+              if (!editor || view !== 'editor') return;
+              let found = false;
+              editor.state.doc.descendants((node, pos) => {
+                if (found) return false;
+                if (node.type.name === 'heading' && node.attrs.id === id) {
+                  navigateToPos(pos);
+                  found = true;
+                }
+              });
+            }}
+            onCreateChapter={handleCreateChapter}
+            onCommitChapter={handleCommitChapter}
+            onChapterStatusChange={handleChapterStatusChange}
+            onOpenChapterHistory={(id: string) => setHistoryDrawerChapterId(id)}
+            
+            onAddTodo={(text: string, anchorId?: string) =>
+              setTodos(prev =>[...prev, { id: anchorId || uid(), text, done: false, anchorId }])}
+            onToggleTodo={(id: string) => {
+              setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
+              removeTodoMarkFromEditor(id);
+            }}
+              
+            onRemoveTodo={(id: string) => {
+              setTodos(prev => prev.filter(t => t.id !== id));
+              removeTodoMarkFromEditor(id);
+            }}
+            onNavigateTodo={(todoId: string) => {
+              if (!editor || view !== 'editor') return;
+              let foundPos = -1;
+              editor.state.doc.descendants((node, pos) => {
+                if (node.marks.find((m: any) => m.type.name === 'todoMark' && m.attrs.todoId === todoId))
+                  foundPos = pos;
+              });
+              if (foundPos !== -1) navigateToPos(foundPos);
+            }}
+          />
         </div>
-      ) : view === 'versions' ? (
-        <VersionsPage
-          versions={versions} activeId={activeVersionId}
-          onBack={() => setView('editor')}
-          onCommit={handleCommitGlobal}
-          onLoad={(vId: string) => {
-            const snap = versions.find(v => v.id === vId);
-            if (!snap || !editor) return;
-            setTitle(snap.data.title);
-            setCategories(snap.data.categories || []);
-            setEntities(snap.data.entities || []);
-            setRelations(snap.data.relations || []);
-            setTodos(snap.data.todos || []);
-            setFragmentLinks(snap.data.fragmentLinks || {});
-            if (snap.data.graphSnapshots) setGraphSnapshots(snap.data.graphSnapshots);
-            
-            if (snap.data.chapterVersions) {
-              setChapters(prev => prev.map(ch => ({
-                ...ch,
-                activeSnapshotId: snap.data.chapterVersions![ch.id] || null
-              })));
-            }
-            
-            editor.commands.setContent(snap.data.content);
-            setActiveVersionId(snap.id);
-            setView('editor');
+      </div>
+
+      {/* ─── AREA CONTENUTO PRINCIPALE ─── */}
+      <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        
+        {/* Pulsante Toggle Sidebar (Sempre visibile) */}
+        <button
+          className="icon-btn"
+          onClick={() => setMainSidebarOpen(!mainSidebarOpen)}
+          style={{
+            position: 'absolute',
+            top: '16px',
+            left: '16px',
+            zIndex: 50,
+            background: 'var(--editor-bg)',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--shadow)',
+            width: '32px',
+            height: '32px'
           }}
-        />
-      ) : null}
+          title={mainSidebarOpen ? "Nascondi barra laterale (Schermo Intero)" : "Mostra barra laterale"}
+        >
+          {mainSidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeft size={18} />}
+        </button>
+
+        {view === 'editor' ? (
+          <div className="editor-main">
+            <div className="editor-area">
+              <input
+                className="doc-title-input" value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="Titolo del Documento..."
+              />
+              <div className="editor-wrap">
+                {editor && (
+                  <BubbleMenu
+                    editor={editor}
+                    className="bubble-menu"
+                    tippyOptions={{ duration: 100 } as any}
+                    shouldShow={({ from, to }) => {
+                      if (from === to) return false;
+                      return !editor.isActive('entityLink');
+                    }}
+                  >
+                    <EditorBubbleMenu
+                      editor={editor}
+                      categories={categories}
+                      entities={entities}
+                      fragmentLinks={fragmentLinks}
+                      setFragmentLinks={setFragmentLinks}
+                      onAddTodo={(txt: string, id?: string) =>
+                        setTodos(prev =>[...prev, { id: id || uid(), text: txt, done: false, anchorId: id }])}
+                      onAddRelation={(rel: Relation) =>
+                        setRelations(prev => [...prev, rel])}
+                    />
+                  </BubbleMenu>
+                )}
+                <EditorContent editor={editor} />
+              </div>
+            </div>
+
+            {/* Menu INFO */}
+            {activeLinkId && menuPos && (
+              <div
+                key={activeLinkId}
+                className="bm-info-menu"
+                style={{ position: 'fixed', left: menuPos.x, top: menuPos.y, transform: 'translateX(-50%)', zIndex: 1000 }}
+                onClick={e => e.stopPropagation()}
+              >
+                <EntityInfoMenu
+                  linkId={activeLinkId}
+                  editor={editorRef.current}
+                  entities={entities}
+                  categories={categories}
+                  fragmentLinks={fragmentLinks}
+                  setFragmentLinks={setFragmentLinks}
+                  onOpenEntity={(e) => { closeInfoMenu(); setEditingEntity(e); }}
+                  onAddRelation={(rel: Relation) => setRelations(prev => [...prev, rel])}
+                  onClose={closeInfoMenu}
+                  onAddMore={(excludeIds) => {
+                    setAddMoreMenu({
+                      linkId: activeLinkId!,
+                      excludeIds,
+                      pos: { x: menuPos!.x, y: menuPos!.y + 10 }
+                    });
+                    setActiveLinkId(null);
+                    setMenuPos(null);
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Menu AGGIUNGI ENTITÀ */}
+            {addMoreMenu && (
+              <div
+                className="bm-add-more-menu bm-info-menu"
+                style={{ position: 'fixed', left: addMoreMenu.pos.x, top: addMoreMenu.pos.y, transform: 'translateX(-50%)', zIndex: 1001 }}
+                onClick={e => e.stopPropagation()}
+              >
+                <AddEntityMenu
+                  linkId={addMoreMenu.linkId}
+                  excludeIds={addMoreMenu.excludeIds}
+                  categories={categories}
+                  entities={entities}
+                  fragmentLinks={fragmentLinks}
+                  setFragmentLinks={setFragmentLinks}
+                  onAddRelation={(rel: Relation) => setRelations(prev => [...prev, rel])}
+                  onClose={() => setAddMoreMenu(null)}
+                />
+              </div>
+            )}
+          </div>
+        ) : view === 'versions' ? (
+          <VersionsPage
+            versions={versions} activeId={activeVersionId}
+            onBack={() => setView('editor')}
+            onCommit={handleCommitGlobal}
+            onLoad={(vId: string) => {
+              const snap = versions.find(v => v.id === vId);
+              if (!snap || !editor) return;
+              setTitle(snap.data.title);
+              setCategories(snap.data.categories || []);
+              setEntities(snap.data.entities ||[]);
+              setRelations(snap.data.relations || []);
+              setTodos(snap.data.todos ||[]);
+              
+              if (snap.data.chapterVersions) {
+                let mergedFragmentLinks: typeof fragmentLinks = {};
+                setChapters(prev => {
+                  const updated = prev.map(ch => {
+                    const snapId = snap.data.chapterVersions![ch.id];
+                    const chSnap = ch.snapshots.find(s => s.id === snapId);
+                    if (chSnap?.fragmentLinks) {
+                      mergedFragmentLinks = { ...mergedFragmentLinks, ...chSnap.fragmentLinks };
+                    }
+                    return { ...ch, activeSnapshotId: snapId || null };
+                  });
+                  return updated;
+                });
+                setFragmentLinks(mergedFragmentLinks);
+              }
+              
+              editor.commands.setContent(snap.data.content);
+              setActiveVersionId(snap.id);
+              setView('editor');
+            }}
+          />
+        ) : view === 'graph' ? (
+          <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: 'var(--bg)' }}>
+            <GraphView
+              entities={entities}
+              categories={categories}
+              graphSnapshots={graphSnapshots}
+              setGraphSnapshots={setGraphSnapshots}
+              activeGraphId={activeGraphId}
+              setActiveGraphId={setActiveGraphId}
+            />
+          </div>
+        ) : null}
+
+      </div>
 
       {editingEntity && (
         <EntityModal
@@ -497,10 +522,9 @@ export default function App() {
   );
 }
 
-// ─── MENU DI SCRITTURA ───
 function EditorBubbleMenu({ editor, categories, entities, fragmentLinks, setFragmentLinks, onAddTodo, onAddRelation }: any) {
-  const [mode, setMode] = useState<'default' | 'todo' | 'link'>('default');
-  const [todoText, setTodoText] = useState("");
+  const[mode, setMode] = useState<'default' | 'todo' | 'link'>('default');
+  const[todoText, setTodoText] = useState("");
 
   if (mode === 'todo') {
     return (
@@ -555,7 +579,7 @@ function EditorBubbleMenu({ editor, categories, entities, fragmentLinks, setFrag
 
                   setFragmentLinks((prev: FragmentLinks) => ({
                     ...prev,
-                    [newLinkId]: { entityIds: [e.id], todoIds: [] }
+                    [newLinkId]: { entityIds: [e.id], todoIds:[] }
                   }));
 
                   onAddRelation({ id: uid(), sourceId: newLinkId, targetId: e.id, type: 'mention' });
@@ -588,7 +612,6 @@ function EditorBubbleMenu({ editor, categories, entities, fragmentLinks, setFrag
   );
 }
 
-// ─── MENU DI LETTURA ───
 function EntityInfoMenu({
   linkId, editor, entities, categories, fragmentLinks, setFragmentLinks,
   onOpenEntity, onAddRelation, onClose, onAddMore
@@ -604,7 +627,7 @@ function EntityInfoMenu({
   onClose: () => void;
   onAddMore: (excludeIds: string[]) => void;
 }) {
-  const fragment = fragmentLinks[linkId] ?? { entityIds: [], todoIds: [] };
+  const fragment = fragmentLinks[linkId] ?? { entityIds: [], todoIds:[] };
   const linkedEntities = fragment.entityIds
     .map((id: string) => entities.find(e => e.id === id))
     .filter(Boolean) as Entity[];
@@ -671,7 +694,6 @@ function EntityInfoMenu({
   );
 }
 
-// ─── MENU AGGIUNGI ENTITÀ ───
 function AddEntityMenu({
   linkId, excludeIds, categories, entities, fragmentLinks, setFragmentLinks, onAddRelation, onClose
 }: {
@@ -709,7 +731,7 @@ function AddEntityMenu({
                   ...prev,
                   [linkId]: {
                     ...prev[linkId],
-                    entityIds: [...(prev[linkId]?.entityIds || []), e.id]
+                    entityIds: [...(prev[linkId]?.entityIds ||[]), e.id]
                   }
                 }));
                 onAddRelation({ id: uid(), sourceId: linkId, targetId: e.id, type: 'mention' });
@@ -730,4 +752,3 @@ function AddEntityMenu({
     </div>
   );
 }
-

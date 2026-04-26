@@ -19,6 +19,8 @@ function Panel({ title, children, badge }: { title: string, children: React.Reac
 }
 
 export function Sidebar({
+  currentView, // Indica se siamo in 'editor', 'versions' o 'graph'
+  
   // ─── VERSIONI ─────────────────────────────
   activeVersion,
   setView,
@@ -55,7 +57,7 @@ export function Sidebar({
 
       <div className="sb-nav">
 
-        {/* ─── CAPITOLI (NUOVO) ───────────────────────── */}
+        {/* ─── CAPITOLI ───────────────────────── */}
         <Panel title="Capitoli" badge={chapters.length}>
           <ChapterPanel
             chapters={chapters}
@@ -70,7 +72,7 @@ export function Sidebar({
           />
         </Panel>
 
-        {/* ─── VERSIONI E GRAFO ──────────────────────────────── */}
+        {/* ─── STRUMENTI (Editor, Versioni, Grafo) ──────────────────────────────── */}
         <Panel title="Strumenti">
           <div className="version-info">
             <div className="branch-badge">
@@ -80,12 +82,28 @@ export function Sidebar({
               Commit: {activeVersion?.label || 'Bozza'}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-            <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setView('versions')}>
-              Versioni
+          
+          <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
+            <button 
+              className={`btn-secondary ${currentView === 'editor' ? 'active' : ''}`} 
+              style={{ flex: 1, minWidth: '45%' }} 
+              onClick={() => setView('editor')}
+            >
+              Editor
             </button>
-            <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setView('graph')}>
+            <button 
+              className={`btn-secondary ${currentView === 'graph' ? 'active' : ''}`} 
+              style={{ flex: 1, minWidth: '45%' }} 
+              onClick={() => setView('graph')}
+            >
               Grafo
+            </button>
+            <button 
+              className={`btn-secondary ${currentView === 'versions' ? 'active' : ''}`} 
+              style={{ flex: 1, minWidth: '100%' }} 
+              onClick={() => setView('versions')}
+            >
+              Versioni (Timeline)
             </button>
           </div>
         </Panel>
