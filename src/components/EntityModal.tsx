@@ -1,24 +1,59 @@
-import React, { useState } from 'react';
-import { Trash2, Hash } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Trash2, Hash, ImagePlus } from 'lucide-react';
 import type { Entity, CustomField } from '../types';
 import { uid } from '../editorUtils';
 
 export function EntityModal({ entity, onSave, onClose, onDelete }: { entity: Entity, onSave: (e: Entity) => void, onClose: () => void, onDelete: (id: string) => void }) {
   const [draft, setDraft] = useState<Entity>({ ...entity });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addField = () => setDraft(d => ({ ...d, fields: [...d.fields, { id: uid(), title: '', value: '' }] }));
   const updateField = (id: string, key: 'title'|'value', val: string) => 
     setDraft(d => ({ ...d, fields: d.fields.map(f => f.id === id ? { ...f, [key]: val } : f) }));
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setDraft(d => ({ ...d, image: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeImage = () => {
+    setDraft(d => ({ ...d, image: undefined }));
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <div className="char-avatar-lg">{draft.avatar || '?'}</div>
+          {draft.image ? (
+            <div className="char-avatar-lg entity-img-preview" style={{ backgroundImage: `url(${draft.image})` }} />
+          ) : (
+            <div className="char-avatar-lg">{draft.avatar || '?'}</div>
+          )}
           <input className="modal-title-input" value={draft.name} onChange={e => setDraft({...draft, name: e.target.value})} placeholder="Nome Entità..." autoFocus />
           <input style={{width:'40px', textAlign:'center', border:'1px solid var(--border)', borderRadius:'4px'}} value={draft.avatar} onChange={e => setDraft({...draft, avatar: e.target.value.substring(0,2)})} placeholder="Az" />
         </div>
         <div className="modal-scroll">
+          {/* Image upload */}
+          <label className="field-label">Immagine</label>
+          <div className="entity-image-section">
+            {draft.image ? (
+              <div className="entity-image-thumb-wrap">
+                <img src={draft.image} alt={draft.name} className="entity-image-thumb" />
+                <button className="entity-image-remove" onClick={removeImage}><Trash2 size={14} /></button>
+              </div>
+            ) : (
+              <button className="btn-ghost full" onClick={() => fileInputRef.current?.click()}>
+                <ImagePlus size={14} style={{ marginRight: 6 }} /> Carica immagine
+              </button>
+            )}
+            <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
+          </div>
+
           <label className="field-label">Descrizione Generale</label>
           <textarea className="modal-textarea" rows={4} value={draft.desc} onChange={e => setDraft({...draft, desc: e.target.value})} placeholder="Descrivi qui i dettagli..." />
           

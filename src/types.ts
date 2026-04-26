@@ -2,9 +2,31 @@ export type Todo = { id: string; text: string; done: boolean; anchorId?: string 
 export type CustomField = { id: string; title: string; value: string };
 
 export type Category = { id: string; name: string; icon: string };
-export type Entity = { id: string; categoryId: string; name: string; avatar: string; desc: string; fields: CustomField[] };
+export type Entity = { id: string; categoryId: string; name: string; avatar: string; image?: string; desc: string; fields: CustomField[] };
 export type Relation = { id: string; sourceId: string; targetId: string; type?: string };
 import type { JSONContent } from '@tiptap/react';
+
+// ─── Graph Snapshot Types ─────────────────────────────────────────
+export type GraphNodeData = {
+  entityId: string;
+  position: { x: number; y: number };
+};
+
+export type GraphEdgeData = {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  type: string;
+};
+
+export type GraphSnapshot = {
+  id: string;
+  label: string;
+  timestamp: number;
+  order: number;
+  nodes: GraphNodeData[];
+  edges: GraphEdgeData[];
+};
  
 export type ChapterStatus = 'draft' | 'revised' | 'final';
 
@@ -15,6 +37,8 @@ export type Snapshot = {
     categories: Category[]; entities: Entity[]; 
     relations: Relation[]; todos: Todo[];
     fragmentLinks: FragmentLinks; 
+    chapterVersions?: Record<string, string>;
+    graphSnapshots?: GraphSnapshot[];
   };
 };
 
@@ -22,6 +46,7 @@ export type FragmentLinks = {
   [linkId: string]: {
     entityIds: string[];
     todoIds: string[];
+    graphSnapshotIds?: string[];
   }
 }
 

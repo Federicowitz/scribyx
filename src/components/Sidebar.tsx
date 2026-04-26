@@ -70,8 +70,8 @@ export function Sidebar({
           />
         </Panel>
 
-        {/* ─── VERSIONI ──────────────────────────────── */}
-        <Panel title="Versioni">
+        {/* ─── VERSIONI E GRAFO ──────────────────────────────── */}
+        <Panel title="Strumenti">
           <div className="version-info">
             <div className="branch-badge">
               <GitBranch size={12} /> {activeVersion?.branch || 'main'}
@@ -80,9 +80,14 @@ export function Sidebar({
               Commit: {activeVersion?.label || 'Bozza'}
             </div>
           </div>
-          <button className="btn-secondary" onClick={() => setView('versions')}>
-            Gestisci Flusso
-          </button>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+            <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setView('versions')}>
+              Versioni
+            </button>
+            <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setView('graph')}>
+              Grafo
+            </button>
+          </div>
         </Panel>
 
         {/* ─── ENTITY / CATEGORIE ───────────────────── */}

@@ -7,7 +7,7 @@ import { X, ChevronRight, CheckCircle, Link } from 'lucide-react';
 import { db } from './db';
 import { uid, TodoMark, BlockIdExtension, EntityLinkMark } from './editorUtils';
 
-import type { Todo, Category, Entity, Relation, Snapshot, FragmentLinks } from './types';
+import type { Todo, Category, Entity, Relation, Snapshot, FragmentLinks, GraphSnapshot } from './types';
 
 import { Sidebar } from './components/Sidebar';
 import { EntityModal } from './components/EntityModal';
@@ -15,18 +15,21 @@ import { VersionsPage } from './components/VersionsPage';
 import { syncChaptersFromDoc, createChapterSnapshot, restoreChapterSnapshot } from './chapterUtils';
 import { ChapterHistoryDrawer } from './components/ChapterHistoryDrawer';
 import type { Chapter, ChapterSnapshot, ChapterStatus } from './types';
+import { GraphView } from './components/GraphView';
 import './global.css';
 
 const DOC_ID = 'main-workspace';
 
 export default function App() {
-  const [view, setView] = useState<'editor' | 'versions'>('editor');
+  const [view, setView] = useState<'editor' | 'versions' | 'graph'>('editor');
   const [isLoaded, setIsLoaded] = useState(false);
 
   const [title, setTitle] = useState("Il mio capolavoro");
   const [categories, setCategories] = useState<Category[]>([
     { id: 'cat-chars', name: 'Personaggi', icon: 'User' },
-    { id: 'cat-locs', name: 'Luoghi', icon: 'Map' }
+    { id: 'cat-locs', name: 'Luoghi', icon: 'Map' },
+    { id: 'cat-objs', name: 'Oggetti', icon: 'Box' },
+    { id: 'cat-groups', name: 'Gruppi', icon: 'Users' }
   ]);
   const [entities, setEntities] = useState<Entity[]>([]);
   const [relations, setRelations] = useState<Relation[]>([]);
@@ -41,6 +44,10 @@ export default function App() {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
   const [historyDrawerChapterId, setHistoryDrawerChapterId] = useState<string | null>(null);
+
+  // Graph snapshots
+  const [graphSnapshots, setGraphSnapshots] = useState<GraphSnapshot[]>([]);
+  const [activeGraphId, setActiveGraphId] = useState<string | null>(null);
 
   // Menu info (lettura link)
   const [activeLinkId, setActiveLinkId] = useState<string | null>(null);
@@ -108,6 +115,8 @@ export default function App() {
         if (data.fragmentLinks) setFragmentLinks(data.fragmentLinks);
         if (editor && data.content) editor.commands.setContent(data.content);
         if (data.chapters) setChapters(data.chapters);
+        if (data.graphSnapshots) setGraphSnapshots(data.graphSnapshots);
+        if (data.activeGraphId) setActiveGraphId(data.activeGraphId);
       }
       setIsLoaded(true);
     });
@@ -122,10 +131,12 @@ export default function App() {
         versions, activeVersionId, fragmentLinks,
         content: editor.getJSON(),
         chapters,
+        graphSnapshots,
+        activeGraphId,
       });
     }, 1000);
     return () => clearTimeout(timeout);
-  }, [title, categories, entities, relations, todos, versions, activeVersionId, fragmentLinks, editor?.state.doc, isLoaded]);
+  }, [title, categories, entities, relations, todos, versions, activeVersionId, fragmentLinks, editor?.state.doc, isLoaded, graphSnapshots, activeGraphId]);
 
   useEffect(() => {
     if (!editor || !isLoaded) return;
@@ -133,6 +144,19 @@ export default function App() {
     setChapters(prev => syncChaptersFromDoc(doc, prev, fragmentLinks));
   }, [editor?.state.doc, fragmentLinks, isLoaded]);
  
+  const handleCommitGlobal = (label: string, branch: string = 'main') => {
+    const chapterVersions: Record<string, string> = {};
+    chapters.forEach(ch => {
+      if (ch.activeSnapshotId) chapterVersions[ch.id] = ch.activeSnapshotId;
+    });
+    const snap: Snapshot = {
+      id: uid(), parentId: activeVersionId, label, branch, timestamp: Date.now(),
+      data: { title, content: editor?.getJSON(), categories, entities, relations, todos, fragmentLinks, chapterVersions, graphSnapshots }
+    };
+    setVersions(prev => [...prev, snap]);
+    setActiveVersionId(snap.id);
+  };
+
   // ─── 6. AGGIUNGI HANDLER createChapter ──────────────────────────────────────
  
   const handleCreateChapter = () => {
@@ -233,6 +257,30 @@ export default function App() {
   };
 
   if (!isLoaded) return <div>Caricamento...</div>;
+
+  if (view === 'graph') {
+    return (
+      <>
+        <GraphView
+          entities={entities}
+          categories={categories}
+          graphSnapshots={graphSnapshots}
+          setGraphSnapshots={setGraphSnapshots}
+          activeGraphId={activeGraphId}
+          setActiveGraphId={setActiveGraphId}
+          onBack={() => setView('editor')}
+        />
+        {editingEntity && (
+          <EntityModal
+            entity={editingEntity}
+            onSave={handleSaveEntity}
+            onDelete={handleDeleteEntity}
+            onClose={() => setEditingEntity(null)}
+          />
+        )}
+      </>
+    );
+  }
 
   return (
     <div
@@ -396,18 +444,11 @@ export default function App() {
             </div>
           )}
         </div>
-      ) : (
+      ) : view === 'versions' ? (
         <VersionsPage
           versions={versions} activeId={activeVersionId}
           onBack={() => setView('editor')}
-          onCommit={(label: string, branch: string) => {
-            const snap: Snapshot = {
-              id: uid(), parentId: activeVersionId, label, branch, timestamp: Date.now(),
-              data: { title, content: editor?.getJSON(), categories, entities, relations, todos, fragmentLinks }
-            };
-            setVersions([...versions, snap]);
-            setActiveVersionId(snap.id);
-          }}
+          onCommit={handleCommitGlobal}
           onLoad={(vId: string) => {
             const snap = versions.find(v => v.id === vId);
             if (!snap || !editor) return;
@@ -417,12 +458,21 @@ export default function App() {
             setRelations(snap.data.relations || []);
             setTodos(snap.data.todos || []);
             setFragmentLinks(snap.data.fragmentLinks || {});
+            if (snap.data.graphSnapshots) setGraphSnapshots(snap.data.graphSnapshots);
+            
+            if (snap.data.chapterVersions) {
+              setChapters(prev => prev.map(ch => ({
+                ...ch,
+                activeSnapshotId: snap.data.chapterVersions![ch.id] || null
+              })));
+            }
+            
             editor.commands.setContent(snap.data.content);
             setActiveVersionId(snap.id);
             setView('editor');
           }}
         />
-      )}
+      ) : null}
 
       {editingEntity && (
         <EntityModal
