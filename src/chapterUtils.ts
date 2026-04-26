@@ -80,6 +80,36 @@ export function extractEntityRefs(
   return Array.from(entityIds);
 }
 
+// ─── Estrae solo i fragmentLinks che appartengono a un capitolo ─────────────────
+// Cammina il contenuto del capitolo, trova tutti i linkId dai mark entityLink,
+// e restituisce un sottoinsieme di fragmentLinks con solo quelli.
+export function extractChapterFragmentLinks(
+  chapterContent: JSONContent,
+  fragmentLinks: FragmentLinks
+): FragmentLinks {
+  const linkIds = new Set<string>();
+
+  function walk(node: JSONContent) {
+    (node.marks ?? []).forEach((mark: any) => {
+      if (mark.type === 'entityLink' && mark.attrs?.linkId) {
+        linkIds.add(mark.attrs.linkId);
+      }
+    });
+    (node.content ?? []).forEach(walk);
+  }
+
+  walk(chapterContent);
+
+  const result: FragmentLinks = {};
+  linkIds.forEach(linkId => {
+    if (fragmentLinks[linkId]) {
+      result[linkId] = fragmentLinks[linkId];
+    }
+  });
+
+  return result;
+}
+
 // ─── Sincronizza la lista dei Chapter dallo stato del documento ───────────────
 // Chiamata ogni volta che il documento TipTap cambia.
 // NON tocca snapshots esistenti — aggiorna solo title, order, entityRefs.
@@ -128,6 +158,7 @@ export function createChapterSnapshot(
 ): ChapterSnapshot {
   const content = extractChapterContent(doc, chapter.id);
   const wordCount = countWords(content);
+  const chapterFragmentLinks = extractChapterFragmentLinks(content, fragmentLinks);
   const entityRefs = extractEntityRefs(content, fragmentLinks);
 
   return {
@@ -138,6 +169,7 @@ export function createChapterSnapshot(
     timestamp: Date.now(),
     content,
     entityRefs,
+    fragmentLinks: chapterFragmentLinks,
     wordCount,
   };
 }

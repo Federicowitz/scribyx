@@ -36,9 +36,7 @@ export type Snapshot = {
     title: string; content: any; 
     categories: Category[]; entities: Entity[]; 
     relations: Relation[]; todos: Todo[];
-    fragmentLinks: FragmentLinks; 
     chapterVersions?: Record<string, string>;
-    graphSnapshots?: GraphSnapshot[];
   };
 };
 
@@ -58,6 +56,7 @@ export interface ChapterSnapshot {
   timestamp: number;
   content: JSONContent;       // nodi TipTap di questo solo capitolo
   entityRefs: string[];       // id delle entità menzionate (da fragmentLinks)
+  fragmentLinks: FragmentLinks; // collegamenti entità ↔ testo di questo capitolo
   wordCount: number;
 }
  
