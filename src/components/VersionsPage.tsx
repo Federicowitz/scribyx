@@ -27,6 +27,21 @@ export function VersionsPage({
   const [label, setLabel] = useState('');
   const activeSnap = versions.find((version: Snapshot) => version.id === activeId);
   const isHead = versions[versions.length - 1]?.id === activeId;
+  const versionMap = new Map(versions.map((version: Snapshot) => [version.id, version]));
+  const depthMap = new Map<string, number>();
+  const versionTree = versions.map((version: Snapshot) => {
+    const parentVersion = version.parentId ? versionMap.get(version.parentId) ?? null : null;
+    const parentDepth = version.parentId ? depthMap.get(version.parentId) ?? 0 : 0;
+    const depth = parentVersion && parentVersion.branch !== version.branch
+      ? parentDepth + 1
+      : parentDepth;
+    depthMap.set(version.id, depth);
+    return {
+      version,
+      depth,
+      isBranchStart: Boolean(parentVersion && parentVersion.branch !== version.branch),
+    };
+  });
 
   return (
     <div className="versions-page">
@@ -36,7 +51,7 @@ export function VersionsPage({
         </button>
         <div className="versions-title">
           <h1>Storia e Branch</h1>
-          <div className="branch-pill">
+          <div className="branch-pill" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
             <GitBranch size={14} /> Branch Attuale: {activeSnap?.branch || pendingVersion?.branch || 'main'}
             <button
               className="icon-btn small"
@@ -89,11 +104,10 @@ export function VersionsPage({
           <p className="hint" style={{ marginBottom: 20 }}>
             Clicca su un nodo per esplorare diramazioni narrative.
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', paddingLeft: 20, position: 'relative' }}>
-            <div style={{ position: 'absolute', left: 29, top: 20, bottom: 20, width: 2, background: 'var(--border)', zIndex: 0 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', padding: '8px 8px 8px 20px', position: 'relative' }}>
 
             {pendingVersion && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 20, zIndex: 1, position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, zIndex: 1, position: 'relative' }}>
                 <div
                   style={{
                     width: 20,
@@ -140,49 +154,70 @@ export function VersionsPage({
               </div>
             )}
 
-            {versions.map((version: Snapshot, index: number) => {
+            {versionTree.map(({ version, depth, isBranchStart }) => {
               const isActive = version.id === activeId;
-              const isFork = version.parentId !== (index > 0 ? versions[index - 1].id : null);
+              const laneOffset = depth * 34;
 
               return (
                 <div
                   key={version.id}
                   style={{
                     display: 'flex',
-                    alignItems: 'center',
-                    gap: 20,
+                    alignItems: 'flex-start',
+                    gap: 10,
                     zIndex: 1,
                     position: 'relative',
-                    marginLeft: isFork ? 40 : 0,
                   }}
                 >
-                  {isFork && (
+                  <div
+                    style={{
+                      width: 24 + laneOffset,
+                      minWidth: 24 + laneOffset,
+                      position: 'relative',
+                      height: 28,
+                    }}
+                  >
                     <div
                       style={{
                         position: 'absolute',
-                        left: -31,
-                        top: '50%',
-                        width: 30,
-                        height: 2,
-                        background: 'var(--border)',
+                        left: laneOffset + 10,
+                        top: -18,
+                        bottom: -18,
+                        width: 1.5,
+                        background: depth === 0 ? 'var(--border)' : 'rgba(45,90,61,0.18)',
                       }}
                     />
-                  )}
-                  <div
-                    onClick={() => onLoad(version.id)}
-                    style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: '50%',
-                      cursor: 'pointer',
-                      border: `3px solid ${isActive ? 'var(--accent)' : 'var(--sb-border)'}`,
-                      background: isActive ? '#fff' : 'var(--editor-bg)',
-                      boxShadow: isActive ? '0 0 0 4px var(--accent-light)' : 'none',
-                      transition: 'all 0.2s',
-                    }}
-                  />
+                    {isBranchStart && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: laneOffset - 18,
+                          top: 13,
+                          width: 18,
+                          height: 1.5,
+                          background: 'rgba(45,90,61,0.25)',
+                        }}
+                      />
+                    )}
+                    <div
+                      onClick={() => onLoad(version.id)}
+                      style={{
+                        position: 'absolute',
+                        left: laneOffset,
+                        top: 4,
+                        width: 20,
+                        height: 20,
+                        borderRadius: '50%',
+                        cursor: 'pointer',
+                        border: `3px solid ${isActive ? 'var(--accent)' : 'var(--sb-border)'}`,
+                        background: isActive ? '#fff' : 'var(--editor-bg)',
+                        boxShadow: isActive ? '0 0 0 4px var(--accent-light)' : 'none',
+                        transition: 'all 0.2s',
+                      }}
+                    />
+                  </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 500, color: isActive ? 'var(--accent)' : 'var(--text)' }}>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: isActive ? 'var(--accent)' : 'var(--text)', paddingTop: 2 }}>
                       {version.label}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-subtle)', display: 'flex', alignItems: 'center', gap: 6 }}>

@@ -535,6 +535,13 @@ export default function App() {
     window.print();
   };
 
+  const openGraphSnapshot = (snapshotId: string) => {
+    setActiveGraphId(snapshotId);
+    setView('graph');
+    setMainSidebarOpen(false);
+    closeInfoMenu();
+  };
+
   const handleExportProject = () => {
     const payload = {
       format: 'writex-project',
@@ -647,12 +654,28 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleWindowKeydown);
   }, [activeChapterId, activeVersionId, chapters, fragmentLinks, versions]);
 
-  const navigateToPos = (pos: number) => {
+  const navigateToPos = (pos: number, block: ScrollLogicalPosition = 'center') => {
     if (!editor) return;
     editor.commands.setTextSelection(pos);
     editor.view.dom.focus();
-    const dom = editor.view.domAtPos(pos).node as HTMLElement;
-    if (dom?.scrollIntoView) dom.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const dom = (editor.view.nodeDOM(pos) as HTMLElement | null) ?? (editor.view.domAtPos(pos).node as HTMLElement | null);
+    if (dom?.scrollIntoView) dom.scrollIntoView({ behavior: 'smooth', block });
+  };
+
+  const navigateToChapterStart = (chapterId: string) => {
+    if (!editor) return;
+    let headingPos = -1;
+    editor.state.doc.descendants((node, pos) => {
+      if (headingPos !== -1) return false;
+      if (node.type.name === 'heading' && node.attrs.id === chapterId) {
+        headingPos = pos;
+        return false;
+      }
+    });
+
+    if (headingPos !== -1) {
+      navigateToPos(headingPos, 'start');
+    }
   };
 
   const handleSaveEntity = (ent: Entity) => {
@@ -743,15 +766,13 @@ export default function App() {
             activeChapterId={activeChapterId}
             onSelectChapter={(id: string) => {
               setActiveChapterId(id);
-              if (!editor || view !== 'editor') return;
-              let found = false;
-              editor.state.doc.descendants((node, pos) => {
-                if (found) return false;
-                if (node.type.name === 'heading' && node.attrs.id === id) {
-                  navigateToPos(pos);
-                  found = true;
-                }
-              });
+              if (!editor) return;
+              if (view !== 'editor') {
+                setView('editor');
+                requestAnimationFrame(() => requestAnimationFrame(() => navigateToChapterStart(id)));
+                return;
+              }
+              navigateToChapterStart(id);
             }}
             onCreateChapter={handleCreateChapter}
             onCommitChapter={handleCommitChapter}
@@ -871,6 +892,7 @@ export default function App() {
                   fragmentLinks={fragmentLinks}
                   setFragmentLinks={setFragmentLinks}
                   onOpenEntity={(e) => { closeInfoMenu(); setEditingEntity(e); }}
+                  onOpenGraphSnapshot={openGraphSnapshot}
                   onAddRelation={(rel: Relation) => setRelations(prev =>[...prev, rel])}
                   onClose={closeInfoMenu}
                   onAddMore={(excludeIds) => {
@@ -1092,7 +1114,7 @@ function EditorBubbleMenu({ editor, categories, entities, graphSnapshots, fragme
 
 function EntityInfoMenu({
   linkId, editor, entities, categories, graphSnapshots, fragmentLinks, setFragmentLinks,
-  onOpenEntity, onAddRelation, onClose, onAddMore
+  onOpenEntity, onOpenGraphSnapshot, onAddRelation, onClose, onAddMore
 }: {
   linkId: string;
   editor: any;
@@ -1102,6 +1124,7 @@ function EntityInfoMenu({
   fragmentLinks: FragmentLinks;
   setFragmentLinks: (fn: (prev: FragmentLinks) => FragmentLinks) => void;
   onOpenEntity: (e: Entity) => void;
+  onOpenGraphSnapshot: (snapshotId: string) => void;
   onAddRelation: (rel: Relation) => void;
   onClose: () => void;
   onAddMore: (excludeIds: string[]) => void;
@@ -1187,12 +1210,17 @@ function EntityInfoMenu({
       ))}
       {linkedGraphSnapshots.map(snapshot => (
         <div key={snapshot.id} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <div className="bm-info-card" style={{ flex: 1, margin: 0 }}>
+          <div
+            className="bm-info-card"
+            style={{ flex: 1, margin: 0 }}
+            onClick={() => onOpenGraphSnapshot(snapshot.id)}
+          >
             <div className="bm-info-avatar">G</div>
             <div className="bm-info-name">
               {snapshot.label}
               <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>Snapshot del grafo</div>
             </div>
+            <ChevronRight size={14} color="var(--text-subtle)" />
           </div>
           <button
             className="icon-btn small"
