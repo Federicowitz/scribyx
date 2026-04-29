@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import {
   BookOpen, Plus, GitCommit, GitBranch,
-  ChevronRight, Clock, FileText, History
+  ChevronRight, FileText, History, PencilLine
 } from 'lucide-react';
 import type { Chapter, ChapterStatus, Entity, Category } from '../types';
 import { uid } from '../editorUtils';
@@ -71,13 +71,14 @@ function GhostButton({
 }
 
 function ChapterRow({
-  chapter, isActive, onSelect, onCommit, onStatusChange, onOpenHistory,
+  chapter, isActive, onSelect, onCommit, onStatusChange, onRenameBranch, onOpenHistory,
 }: {
   chapter: Chapter;
   isActive: boolean;
   onSelect: () => void;
   onCommit: (label: string, branch: string) => void;
   onStatusChange: (status: ChapterStatus) => void;
+  onRenameBranch: (branch: string) => void;
   onOpenHistory: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -170,6 +171,17 @@ function ChapterRow({
                       }}>
                         {branch}
                       </span>
+                      <button
+                        className="icon-btn small"
+                        onClick={event => {
+                          event.stopPropagation();
+                          onRenameBranch(branch);
+                        }}
+                        title="Rinomina branch"
+                        style={{ width: 18, height: 18 }}
+                      >
+                        <PencilLine size={10} />
+                      </button>
                       <span style={{ fontSize: 10, color: 'var(--text-subtle)' }}>
                         {branchSnaps.length}
                       </span>
@@ -276,7 +288,7 @@ function ChapterRow({
 // ─── Pannello completo ────────────────────────────────────────────────────────
 export function ChapterPanel({
   chapters, activeChapterId, onSelectChapter, onCreateChapter,
-  onCommitChapter, onStatusChange, onOpenHistory, entities, categories,
+  onCommitChapter, onStatusChange, onRenameBranch, onOpenHistory, entities, categories,
 }: {
   chapters: Chapter[];
   activeChapterId: string | null;
@@ -284,6 +296,7 @@ export function ChapterPanel({
   onCreateChapter: () => void;
   onCommitChapter: (chapterId: string, label: string, branch: string) => void;
   onStatusChange: (chapterId: string, status: ChapterStatus) => void;
+  onRenameBranch: (chapterId: string, branch: string) => void;
   onOpenHistory: (chapterId: string) => void;
   entities: Entity[];
   categories: Category[];
@@ -304,6 +317,7 @@ export function ChapterPanel({
           onSelect={() => onSelectChapter(chapter.id)}
           onCommit={(label, branch) => onCommitChapter(chapter.id, label, branch)}
           onStatusChange={status => onStatusChange(chapter.id, status)}
+          onRenameBranch={branch => onRenameBranch(chapter.id, branch)}
           onOpenHistory={() => onOpenHistory(chapter.id)}
         />
       ))}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronRight, ChevronDown, Plus, Trash2, GitBranch, Edit3, PanelLeftClose } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus, Trash2, Edit3, PanelLeftClose, Wrench, FileDown, FileUp, Download } from 'lucide-react';
 import type { Category, Entity, Todo, Chapter, ChapterStatus } from '../types';
 import { uid } from '../editorUtils';
 import { ChapterPanel } from './ChapterPanel';
@@ -23,7 +23,9 @@ export function Sidebar({
   onCloseSidebar, // Funzione per entrare in Focus Mode
   
   // ─── VERSIONI ─────────────────────────────
-  activeVersion,
+  onExportPdf,
+  onExportProject,
+  onImportProject,
   setView,
 
   // ─── CHAPTER SYSTEM ──────────────────────
@@ -33,6 +35,7 @@ export function Sidebar({
   onCreateChapter,
   onCommitChapter,
   onChapterStatusChange,
+  onRenameChapterBranch,
   onOpenChapterHistory,
 
   // ─── ENTITY SYSTEM ───────────────────────
@@ -49,22 +52,47 @@ export function Sidebar({
   onNavigateTodo
 
 }: any) {
+  const [utilsOpen, setUtilsOpen] = useState(false);
+
   return (
     <div className="sidebar">
       {/* ── LOGO E BOTTONE CHIUSURA (FOCUS MODE) ── */}
-      <div className="sidebar-logo" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="sidebar-logo" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Edit3 className="logo-mark" size={20} />
           <span className="logo-text">Narrative.io</span>
         </div>
-        <button 
-          className="icon-btn small" 
-          onClick={onCloseSidebar} 
-          title="Nascondi barra laterale (Focus Mode)"
-          style={{ width: '24px', height: '24px' }}
-        >
-          <PanelLeftClose size={16} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', position: 'relative' }}>
+          <button
+            className="icon-btn small"
+            onClick={() => setUtilsOpen(open => !open)}
+            title="Apri utils"
+            style={{ width: '24px', height: '24px' }}
+          >
+            <Wrench size={14} />
+          </button>
+          <button 
+            className="icon-btn small" 
+            onClick={onCloseSidebar} 
+            title="Nascondi barra laterale (Focus Mode)"
+            style={{ width: '24px', height: '24px' }}
+          >
+            <PanelLeftClose size={16} />
+          </button>
+          {utilsOpen && (
+            <div className="utils-menu">
+              <button className="utils-menu-item" onClick={() => { setUtilsOpen(false); onExportPdf(); }}>
+                <Download size={13} /> Esporta PDF
+              </button>
+              <button className="utils-menu-item" onClick={() => { setUtilsOpen(false); onExportProject(); }}>
+                <FileDown size={13} /> Salva progetto
+              </button>
+              <button className="utils-menu-item" onClick={() => { setUtilsOpen(false); onImportProject(); }}>
+                <FileUp size={13} /> Importa progetto
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="sb-nav">
@@ -78,6 +106,7 @@ export function Sidebar({
             onCreateChapter={onCreateChapter}
             onCommitChapter={onCommitChapter}
             onStatusChange={onChapterStatusChange}
+            onRenameBranch={onRenameChapterBranch}
             onOpenHistory={onOpenChapterHistory}
             entities={entities}
             categories={categories}
@@ -86,15 +115,6 @@ export function Sidebar({
 
         {/* ─── STRUMENTI (Editor, Versioni, Grafo) ──────────────────────────────── */}
         <Panel title="Strumenti">
-          <div className="version-info">
-            <div className="branch-badge">
-              <GitBranch size={12} /> {activeVersion?.branch || 'main'}
-            </div>
-            <div className="version-label">
-              Commit: {activeVersion?.label || 'Bozza'}
-            </div>
-          </div>
-          
           <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
             <button 
               className={`btn-secondary ${currentView === 'editor' ? 'active' : ''}`} 

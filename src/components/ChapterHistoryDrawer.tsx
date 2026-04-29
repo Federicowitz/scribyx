@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import {
   X, GitCommit, GitBranch, RotateCcw, Clock,
-  FileText, ChevronDown, ChevronRight, CheckCircle
+  FileText, ChevronDown, ChevronRight, RefreshCw, Trash2
 } from 'lucide-react';
 import type { Chapter, ChapterSnapshot, ChapterStatus } from '../types';
 
@@ -17,12 +17,14 @@ const STATUS_COLORS: Record<ChapterStatus, string> = {
 
 // ─── Singolo nodo nella timeline ─────────────────────────────────────────────
 function SnapshotNode({
-  snapshot, isActive, isHead, onRestore
+  snapshot, isActive, isHead, onRestore, onOverwrite, onDelete
 }: {
   snapshot: ChapterSnapshot;
   isActive: boolean;
   isHead: boolean;
   onRestore: () => void;
+  onOverwrite: () => void;
+  onDelete: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
   const date = new Date(snapshot.timestamp);
@@ -97,19 +99,49 @@ function SnapshotNode({
         </div>
 
         {/* Pulsante ripristina — appare solo su hover o se non è già attivo */}
-        {(hovered && !isActive) && (
-          <button
-            onClick={onRestore}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              fontSize: 11, padding: '3px 8px', borderRadius: 4,
-              border: '1px solid var(--border)', background: 'var(--editor-bg)',
-              color: 'var(--text-muted)', cursor: 'pointer',
-              transition: 'all 0.12s',
-            }}
-          >
-            <RotateCcw size={10} /> Ripristina
-          </button>
+        {hovered && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {!isActive && (
+              <button
+                onClick={onRestore}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  fontSize: 11, padding: '3px 8px', borderRadius: 4,
+                  border: '1px solid var(--border)', background: 'var(--editor-bg)',
+                  color: 'var(--text-muted)', cursor: 'pointer',
+                  transition: 'all 0.12s',
+                }}
+              >
+                <RotateCcw size={10} /> Ripristina
+              </button>
+            )}
+            {isActive && (
+              <button
+                onClick={onOverwrite}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  fontSize: 11, padding: '3px 8px', borderRadius: 4,
+                  border: '1px solid var(--border)', background: 'var(--editor-bg)',
+                  color: 'var(--text-muted)', cursor: 'pointer',
+                  transition: 'all 0.12s',
+                }}
+              >
+                <RefreshCw size={10} /> Sovrascrivi
+              </button>
+            )}
+            <button
+              onClick={onDelete}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                fontSize: 11, padding: '3px 8px', borderRadius: 4,
+                border: '1px solid #fca5a5', background: '#fff5f5',
+                color: 'var(--accent-2)', cursor: 'pointer',
+                transition: 'all 0.12s',
+              }}
+            >
+              <Trash2 size={10} /> Elimina
+            </button>
+          </div>
         )}
       </div>
     </div>
@@ -118,12 +150,14 @@ function SnapshotNode({
 
 // ─── Gruppo branch ────────────────────────────────────────────────────────────
 function BranchGroup({
-  branch, snapshots, activeSnapshotId, onRestore, color
+  branch, snapshots, activeSnapshotId, onRestore, onOverwrite, onDelete, color
 }: {
   branch: string;
   snapshots: ChapterSnapshot[];
   activeSnapshotId: string | null;
   onRestore: (snap: ChapterSnapshot) => void;
+  onOverwrite: (snap: ChapterSnapshot) => void;
+  onDelete: (snap: ChapterSnapshot) => void;
   color: string;
 }) {
   const [open, setOpen] = useState(true);
@@ -171,6 +205,8 @@ function BranchGroup({
               isActive={snap.id === activeSnapshotId}
               isHead={i === 0}
               onRestore={() => onRestore(snap)}
+              onOverwrite={() => onOverwrite(snap)}
+              onDelete={() => onDelete(snap)}
             />
           ))}
         </div>
@@ -185,11 +221,13 @@ const BRANCH_COLORS = [
 ];
 
 export function ChapterHistoryDrawer({
-  chapter, onClose, onRestore
+  chapter, onClose, onRestore, onOverwrite, onDelete
 }: {
   chapter: Chapter;
   onClose: () => void;
   onRestore: (chapterId: string, snapshot: ChapterSnapshot) => void;
+  onOverwrite: (chapterId: string, snapshotId: string) => void;
+  onDelete: (chapterId: string, snapshotId: string) => void;
 }) {
   const branches = [...new Set(chapter.snapshots.map(s => s.branch))];
 
@@ -274,6 +312,12 @@ export function ChapterHistoryDrawer({
                   snapshots={branchSnaps}
                   activeSnapshotId={chapter.activeSnapshotId}
                   onRestore={(snap) => onRestore(chapter.id, snap)}
+                  onOverwrite={(snap) => onOverwrite(chapter.id, snap.id)}
+                  onDelete={(snap) => {
+                    if (window.confirm(`Eliminare definitivamente lo snapshot "${snap.label}"?`)) {
+                      onDelete(chapter.id, snap.id);
+                    }
+                  }}
                   color={BRANCH_COLORS[i % BRANCH_COLORS.length]}
                 />
               );

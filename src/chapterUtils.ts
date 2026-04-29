@@ -174,6 +174,27 @@ export function createChapterSnapshot(
   };
 }
 
+export function overwriteChapterSnapshot(
+  snapshot: ChapterSnapshot,
+  chapter: Chapter,
+  doc: JSONContent,
+  fragmentLinks: FragmentLinks
+): ChapterSnapshot {
+  const content = extractChapterContent(doc, chapter.id);
+  const wordCount = countWords(content);
+  const chapterFragmentLinks = extractChapterFragmentLinks(content, fragmentLinks);
+  const entityRefs = extractEntityRefs(content, fragmentLinks);
+
+  return {
+    ...snapshot,
+    timestamp: Date.now(),
+    content,
+    entityRefs,
+    fragmentLinks: chapterFragmentLinks,
+    wordCount,
+  };
+}
+
 // ─── Ripristina il contenuto di un capitolo da uno snapshot ──────────────────
 // Sostituisce i nodi del capitolo nel documento con quelli dello snapshot
 export function restoreChapterSnapshot(

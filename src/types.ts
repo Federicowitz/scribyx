@@ -36,6 +36,7 @@ export type Snapshot = {
     title: string; content: any; 
     categories: Category[]; entities: Entity[]; 
     relations: Relation[]; todos: Todo[];
+    fragmentLinks?: FragmentLinks;
     chapterVersions?: Record<string, string>;
   };
 };

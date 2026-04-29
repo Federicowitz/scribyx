@@ -1,3 +1,5 @@
+TUTTO FATTO TODO OBSOLETO
+
 F5 e ctrl Z non vanno mai usati. Si perdono tutti i collegamenti. Devo salvare uno stato globale ogni volta che faccio una modifica questo stato deve persistere all'F5 e al ctrl Z e deve essere salvato come pending. Se si volesse ritornare a un commit globale precedente dallo stato di pending allora l'user va avvisato
 
 Devo poter collegare uno snapshot anche a un frammento di testo quindi, quando seleziono un frammento di testo nel riquadro (dove nel bubble menu c'è scritto collega, lo facciamo collegare, se si vuole anche a uno snapshot)

@@ -97,3 +97,59 @@ export const BlockIdExtension = Extension.create({
     ];
   },
 });
+
+export const ChapterPageExtension = Extension.create({
+  name: 'chapterPages',
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: new PluginKey('chapterPagesPlugin'),
+        props: {
+          decorations(state) {
+            const decorations: Decoration[] = [];
+            const groups: Array<Array<{ from: number; to: number }>> = [];
+            let currentGroup: Array<{ from: number; to: number }> = [];
+
+            state.doc.forEach((node, pos) => {
+              const isChapterStart = node.type.name === 'heading' && node.attrs?.level === 1;
+              if (isChapterStart && currentGroup.length > 0) {
+                groups.push(currentGroup);
+                currentGroup = [];
+              }
+
+              currentGroup.push({ from: pos, to: pos + node.nodeSize });
+            });
+
+            if (currentGroup.length > 0) {
+              groups.push(currentGroup);
+            }
+
+            groups.forEach(group => {
+              group.forEach((entry, index) => {
+                const classes = ['chapter-page-node'];
+                if (index === 0) {
+                  classes.push('chapter-page-start');
+                }
+                if (index === group.length - 1) {
+                  classes.push('chapter-page-end');
+                }
+                if (group.length === 1) {
+                  classes.push('chapter-page-single');
+                }
+
+                decorations.push(
+                  Decoration.node(entry.from, entry.to, {
+                    class: classes.join(' '),
+                  })
+                );
+              });
+            });
+
+            return DecorationSet.create(state.doc, decorations);
+          },
+        },
+      }),
+    ];
+  },
+});
