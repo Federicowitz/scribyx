@@ -11,7 +11,7 @@ Altra cosa importante per i singoli capitoli. Ogni nuovo capitolo deve poter cre
 
 Exportino pdf ;D ?!
 
-FATTO (credo sia stato già fatto)
+FATTO (credo sia stato già fatto) IN REALTA' SE NON VIENE SALVATO LO STATO GLOBALE SI PERDONO TUTTI I COLLEGAMENTI. DA CAPIRE BENE QUESTA COSA
 Quando creo un collegamento nel capitolo e commito quel capitolo con quel collegamento se poi vado a riprendere un vecchio commit globale e poi torno a quello nuovo il commit del capitolo con il collegamento mostra il collegamento ma è come se fosse vuoto: c'è la dicitura Nessun Collegamento e il riquadro + Collega altro (non si vede il box con i collegamenti e effettivamente mi permette di collegarlo con tutte le entità)
 Dobbiamo gestire i collegamenti all'interno dei commit dei capitoli e non nei commit delle versioni globali. (mi sto chiedendo se ha senso il versioning globale) Il versioning globale serve solo a salvare un istantanea del testo, dei capitoli selezionati e delle entità create o eliminate. Altrimenti quello che conta è il versioning dei singoli capitoli (dove effettivamente ci sono i collegamenti con le entità). Ah no ecco qua: se creo un entità e poi voglio committare un capitolo mi deve anche dara la possibilità di committare il tutto anche globalmente altrimenti perdo le entità quindi ricapitolando:
 collegamenti dei fragments vengono gestiti a livello di capitoli
