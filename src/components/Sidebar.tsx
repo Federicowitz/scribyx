@@ -23,6 +23,8 @@ export function Sidebar({
   onCloseSidebar, // Funzione per entrare in Focus Mode
   
   // ─── VERSIONI ─────────────────────────────
+  activeVersion,
+  isPendingDirty,
   onExportPdf,
   onExportProject,
   onImportProject,
@@ -115,6 +117,14 @@ export function Sidebar({
 
         {/* ─── STRUMENTI (Editor, Versioni, Grafo) ──────────────────────────────── */}
         <Panel title="Strumenti">
+          <div className="version-info">
+            <div className="branch-badge">
+              {activeVersion?.branch || 'main'}
+            </div>
+            <div className="version-label">
+              {isPendingDirty ? 'Pending' : (activeVersion?.label || 'Bozza')}
+            </div>
+          </div>
           <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
             <button 
               className={`btn-secondary ${currentView === 'editor' ? 'active' : ''}`} 

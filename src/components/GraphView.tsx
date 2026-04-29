@@ -18,7 +18,7 @@ import type {
   Connection
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ChevronLeft, ChevronRight, Plus, Trash2, GripVertical, Edit3, Check, Copy } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2, GripVertical, Edit3, Check, Copy, CornerUpLeft } from 'lucide-react';
 import type { Entity, Category, GraphSnapshot, GraphNodeData, GraphEdgeData } from '../types';
 
 /* ─── Helpers ───────────────────────────────────────────── */
@@ -130,6 +130,8 @@ interface GraphViewProps {
   setGraphSnapshots: React.Dispatch<React.SetStateAction<GraphSnapshot[]>>;
   activeGraphId: string | null;
   setActiveGraphId: React.Dispatch<React.SetStateAction<string | null>>;
+  navigationContext?: { linkId: string; snapshotLabel: string } | null;
+  onReturnToContext?: () => void;
 }
 
 /* ─── Inner Canvas (owns React Flow state) ──────────────── */
@@ -315,7 +317,9 @@ function GraphCanvas({
 export function GraphView({
   entities, categories,
   graphSnapshots, setGraphSnapshots,
-  activeGraphId, setActiveGraphId
+  activeGraphId, setActiveGraphId,
+  navigationContext,
+  onReturnToContext
 }: GraphViewProps) {
 
   const activeGraph = graphSnapshots.find(g => g.id === activeGraphId) || null;
@@ -563,6 +567,36 @@ export function GraphView({
 
       {/* ── Canvas ──────────────────────────────────────── */}
       <div className="graph-canvas-wrap" style={{ flex: 1, position: 'relative', width: '100%', height: '100%' }}>
+        {navigationContext && onReturnToContext && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 16,
+              left: 16,
+              zIndex: 20,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              background: 'rgba(254, 253, 248, 0.96)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              boxShadow: 'var(--shadow)',
+              padding: '8px 12px',
+            }}
+          >
+            <button
+              className="btn-secondary"
+              style={{ width: 'auto', padding: '6px 10px' }}
+              onClick={onReturnToContext}
+            >
+              <CornerUpLeft size={13} style={{ marginRight: 6 }} /> Torna al link
+            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{navigationContext.snapshotLabel}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>Aperto da un collegamento nel testo</div>
+            </div>
+          </div>
+        )}
         {activeGraph ? (
           <GraphCanvas
             key={activeGraph.id}

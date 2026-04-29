@@ -85,6 +85,7 @@ export default function App() {
   // Graph snapshots
   const [graphSnapshots, setGraphSnapshots] = useState<GraphSnapshot[]>([]);
   const [activeGraphId, setActiveGraphId] = useState<string | null>(null);
+  const [graphNavigationContext, setGraphNavigationContext] = useState<{ linkId: string; snapshotLabel: string } | null>(null);
 
   // Menu info (lettura link)
   const[activeLinkId, setActiveLinkId] = useState<string | null>(null);
@@ -535,10 +536,35 @@ export default function App() {
     window.print();
   };
 
-  const openGraphSnapshot = (snapshotId: string) => {
+  const reopenLinkInfoMenu = (linkId: string) => {
+    if (!editor) return;
+    const target = editor.view.dom.querySelector(`[data-link-id="${linkId}"]`) as HTMLElement | null;
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const rect = target.getBoundingClientRect();
+    setActiveLinkId(linkId);
+    setMenuPos({ x: rect.left + rect.width / 2, y: rect.bottom + 8 });
+    setAddMoreMenu(null);
+  };
+
+  const returnFromGraphSnapshot = () => {
+    if (!graphNavigationContext) return;
+    setView('editor');
+    setMainSidebarOpen(true);
+    const linkId = graphNavigationContext.linkId;
+    setGraphNavigationContext(null);
+    requestAnimationFrame(() => requestAnimationFrame(() => reopenLinkInfoMenu(linkId)));
+  };
+
+  const openGraphSnapshot = (snapshotId: string, linkId: string) => {
+    const snapshot = graphSnapshots.find(item => item.id === snapshotId);
     setActiveGraphId(snapshotId);
     setView('graph');
     setMainSidebarOpen(false);
+    setGraphNavigationContext({
+      linkId,
+      snapshotLabel: snapshot?.label ?? 'Snapshot del grafo',
+    });
     closeInfoMenu();
   };
 
@@ -654,6 +680,12 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleWindowKeydown);
   }, [activeChapterId, activeVersionId, chapters, fragmentLinks, versions]);
 
+  useEffect(() => {
+    if (view !== 'graph' && graphNavigationContext) {
+      setGraphNavigationContext(null);
+    }
+  }, [view, graphNavigationContext]);
+
   const navigateToPos = (pos: number, block: ScrollLogicalPosition = 'center') => {
     if (!editor) return;
     editor.commands.setTextSelection(pos);
@@ -754,6 +786,8 @@ export default function App() {
             currentView={view} 
             onCloseSidebar={() => setMainSidebarOpen(false)} // Passiamo la funzione per chiudere
             headings={headings} navigateToPos={navigateToPos}
+            activeVersion={activeVersion}
+            isPendingDirty={isPendingDirty}
             onExportPdf={handleExportPdf}
             onExportProject={handleExportProject}
             onImportProject={handleRequestProjectImport}
@@ -957,6 +991,8 @@ export default function App() {
               setGraphSnapshots={setGraphSnapshots}
               activeGraphId={activeGraphId}
               setActiveGraphId={setActiveGraphId}
+              navigationContext={graphNavigationContext}
+              onReturnToContext={returnFromGraphSnapshot}
             />
           </div>
         ) : null}
@@ -1124,7 +1160,7 @@ function EntityInfoMenu({
   fragmentLinks: FragmentLinks;
   setFragmentLinks: (fn: (prev: FragmentLinks) => FragmentLinks) => void;
   onOpenEntity: (e: Entity) => void;
-  onOpenGraphSnapshot: (snapshotId: string) => void;
+  onOpenGraphSnapshot: (snapshotId: string, linkId: string) => void;
   onAddRelation: (rel: Relation) => void;
   onClose: () => void;
   onAddMore: (excludeIds: string[]) => void;
@@ -1213,7 +1249,7 @@ function EntityInfoMenu({
           <div
             className="bm-info-card"
             style={{ flex: 1, margin: 0 }}
-            onClick={() => onOpenGraphSnapshot(snapshot.id)}
+            onClick={() => onOpenGraphSnapshot(snapshot.id, linkId)}
           >
             <div className="bm-info-avatar">G</div>
             <div className="bm-info-name">

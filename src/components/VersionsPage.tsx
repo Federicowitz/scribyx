@@ -107,7 +107,7 @@ export function VersionsPage({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', padding: '8px 8px 8px 20px', position: 'relative' }}>
 
             {pendingVersion && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, zIndex: 1, position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, zIndex: 1, position: 'relative', width: '100%' }}>
                 <div
                   style={{
                     width: 20,
@@ -119,7 +119,7 @@ export function VersionsPage({
                     transition: 'all 0.2s',
                   }}
                 />
-                <div style={{ flex: 1 }}>
+                <div style={{ minWidth: 220, maxWidth: 420 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div
                       style={{
@@ -167,6 +167,7 @@ export function VersionsPage({
                     gap: 10,
                     zIndex: 1,
                     position: 'relative',
+                    width: '100%',
                   }}
                 >
                   <div
@@ -216,7 +217,7 @@ export function VersionsPage({
                       }}
                     />
                   </div>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ minWidth: 220, maxWidth: 420 }}>
                     <div style={{ fontSize: 14, fontWeight: 500, color: isActive ? 'var(--accent)' : 'var(--text)', paddingTop: 2 }}>
                       {version.label}
                     </div>
@@ -235,7 +236,7 @@ export function VersionsPage({
                       </button>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
                     <button
                       className="icon-btn small"
                       title="Sovrascrivi questo commit"
