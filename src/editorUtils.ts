@@ -53,6 +53,89 @@ export const EntityLinkMark = Mark.create({
   }
 });
 
+export const UnderlineMark = Mark.create({
+  name: 'underline',
+
+  parseHTML() {
+    return [
+      { tag: 'u' },
+      {
+        style: 'text-decoration',
+        getAttrs: value => String(value).includes('underline') && null,
+      },
+    ];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ['span', mergeAttributes(HTMLAttributes, { style: 'text-decoration: underline;' }), 0];
+  },
+});
+
+export const TextStyleMark = Mark.create({
+  name: 'textStyle',
+
+  addAttributes() {
+    return {
+      fontFamily: {
+        default: null,
+        parseHTML: element => (element as HTMLElement).style.fontFamily || null,
+      },
+      fontSize: {
+        default: null,
+        parseHTML: element => (element as HTMLElement).style.fontSize || null,
+      },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: 'span[style]' }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    const style = [
+      HTMLAttributes.fontFamily ? `font-family: ${HTMLAttributes.fontFamily}` : '',
+      HTMLAttributes.fontSize ? `font-size: ${HTMLAttributes.fontSize}` : '',
+    ].filter(Boolean).join('; ');
+
+    if (!style) return ['span', HTMLAttributes, 0];
+    return ['span', mergeAttributes(HTMLAttributes, { style }), 0];
+  },
+});
+
+export const ParagraphFormatExtension = Extension.create({
+  name: 'paragraphFormat',
+
+  addGlobalAttributes() {
+    return [{
+      types: ['heading', 'paragraph'],
+      attributes: {
+        textAlign: {
+          default: null,
+          parseHTML: element => (element as HTMLElement).style.textAlign || null,
+          renderHTML: attributes => {
+            const styles = [
+              attributes.textAlign ? `text-align: ${attributes.textAlign}` : '',
+              attributes.lineHeight ? `line-height: ${attributes.lineHeight}` : '',
+              attributes.paragraphSpacing ? `margin-bottom: ${attributes.paragraphSpacing}` : '',
+            ].filter(Boolean).join('; ');
+            return styles ? { style: styles } : {};
+          },
+        },
+        lineHeight: {
+          default: null,
+          parseHTML: element => (element as HTMLElement).style.lineHeight || null,
+          renderHTML: () => ({}),
+        },
+        paragraphSpacing: {
+          default: null,
+          parseHTML: element => (element as HTMLElement).style.marginBottom || null,
+          renderHTML: () => ({}),
+        },
+      },
+    }];
+  },
+});
+
 export const BlockIdExtension = Extension.create({
   name: 'blockId',
 

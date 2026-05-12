@@ -10,6 +10,7 @@ import type { JSONContent } from '@tiptap/react';
 export type GraphNodeData = {
   entityId: string;
   position: { x: number; y: number };
+  mapRole?: 'entity' | 'place';
 };
 
 export type GraphEdgeData = {
@@ -19,8 +20,16 @@ export type GraphEdgeData = {
   type: string;
 };
 
+export type GraphMap = {
+  id: string;
+  label: string;
+  order: number;
+  createdAt: number;
+};
+
 export type GraphSnapshot = {
   id: string;
+  mapId?: string;
   label: string;
   timestamp: number;
   order: number;

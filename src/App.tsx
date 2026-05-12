@@ -1,13 +1,22 @@
-import { useState, useEffect, useRef, type ChangeEvent } from 'react';
+import { useState, useEffect, useRef, type ChangeEvent, type CSSProperties } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
-import { X, ChevronRight, CheckCircle, Link, PanelLeft } from 'lucide-react';
+import { X, ChevronRight, CheckCircle, Link, PanelLeft, Moon, Sun } from 'lucide-react';
 
 import { db } from './db';
-import { uid, TodoMark, BlockIdExtension, ChapterPageExtension, EntityLinkMark } from './editorUtils';
+import {
+  uid,
+  TodoMark,
+  BlockIdExtension,
+  ChapterPageExtension,
+  EntityLinkMark,
+  UnderlineMark,
+  TextStyleMark,
+  ParagraphFormatExtension,
+} from './editorUtils';
 
-import type { Todo, Category, Entity, Relation, Snapshot, FragmentLinks, GraphSnapshot } from './types';
+import type { Todo, Category, Entity, Relation, Snapshot, FragmentLinks, GraphSnapshot, GraphMap } from './types';
 
 import { Sidebar } from './components/Sidebar';
 import { EntityModal } from './components/EntityModal';
@@ -16,6 +25,7 @@ import { syncChaptersFromDoc, createChapterSnapshot, overwriteChapterSnapshot, r
 import { ChapterHistoryDrawer } from './components/ChapterHistoryDrawer';
 import type { Chapter, ChapterSnapshot, ChapterStatus } from './types';
 import { GraphView } from './components/GraphView';
+import { EditorToolbar } from './components/EditorToolbar';
 import './global.css';
 
 const DOC_ID = 'main-workspace';
@@ -27,6 +37,89 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat-objs', name: 'Oggetti', icon: 'Box' },
   { id: 'cat-groups', name: 'Gruppi', icon: 'Users' }
 ];
+const DEFAULT_GRAPH_MAP_ID = 'graph-map-main';
+const DEFAULT_GRAPH_MAP: GraphMap = {
+  id: DEFAULT_GRAPH_MAP_ID,
+  label: 'Mappa principale',
+  order: 0,
+  createdAt: Date.now(),
+};
+const UI_THEME_STORAGE_KEY = 'writex-ui-theme';
+
+type ThemeVars = CSSProperties & Record<`--${string}`, string>;
+type UiThemeMode = 'light' | 'shadow' | 'dark';
+
+const THEME_PRESETS: Record<UiThemeMode, { label: string; vars: ThemeVars }> = {
+  light: {
+    label: 'Chiara',
+    vars: {
+      '--bg': '#f2ede4',
+      '--sb-bg': '#e8e2d7',
+      '--sb-border': '#cfc8bb',
+      '--editor-bg': '#fefdf8',
+      '--surface-elevated': '#fefdf8',
+      '--text': '#1c1a17',
+      '--text-muted': '#7a7265',
+      '--text-subtle': '#b0a898',
+      '--border': '#d6cfbf',
+      '--accent': '#2d5a3d',
+      '--accent-hover': '#1e3f2b',
+      '--accent-light': '#e6ede9',
+      '--accent-2': '#7c2d12',
+      '--surface-floating': '#1c1a17',
+      '--todo-mark-bg': 'rgba(245, 158, 11, .18)',
+      '--todo-mark-border': '#d97706',
+    },
+  },
+  shadow: {
+    label: 'Ombra',
+    vars: {
+      '--bg': '#ded4c4',
+      '--sb-bg': '#d0c5b5',
+      '--sb-border': '#b7ab9a',
+      '--editor-bg': '#f5efe4',
+      '--surface-elevated': '#f5efe4',
+      '--text': '#201d18',
+      '--text-muted': '#665d50',
+      '--text-subtle': '#8d8172',
+      '--border': '#bdb1a0',
+      '--accent': '#2f6042',
+      '--accent-hover': '#214730',
+      '--accent-light': '#d7e2da',
+      '--accent-2': '#7f3518',
+      '--surface-floating': '#211e1a',
+      '--todo-mark-bg': 'rgba(217, 119, 6, .18)',
+      '--todo-mark-border': '#b45309',
+    },
+  },
+  dark: {
+    label: 'Dark',
+    vars: {
+      '--bg': '#171512',
+      '--sb-bg': '#211d17',
+      '--sb-border': '#3c342a',
+      '--editor-bg': '#29241c',
+      '--surface-elevated': '#29241c',
+      '--text': '#f2eadc',
+      '--text-muted': '#c8baa5',
+      '--text-subtle': '#928674',
+      '--border': '#463c30',
+      '--accent': '#9fc7a7',
+      '--accent-hover': '#bee0c4',
+      '--accent-light': 'rgba(159, 199, 167, .16)',
+      '--accent-2': '#f0a077',
+      '--surface-floating': '#0f0e0c',
+      '--todo-mark-bg': 'rgba(245, 158, 11, .24)',
+      '--todo-mark-border': '#f59e0b',
+    },
+  },
+};
+
+function readThemePreference(): UiThemeMode {
+  if (typeof window === 'undefined') return 'light';
+  const stored = window.localStorage.getItem(UI_THEME_STORAGE_KEY);
+  return stored === 'shadow' || stored === 'dark' || stored === 'light' ? stored : 'light';
+}
 
 function buildChapterVersionMap(chapters: Chapter[]) {
   const chapterVersions: Record<string, string> = {};
@@ -83,6 +176,8 @@ export default function App() {
   const [historyDrawerChapterId, setHistoryDrawerChapterId] = useState<string | null>(null);
 
   // Graph snapshots
+  const [graphMaps, setGraphMaps] = useState<GraphMap[]>([DEFAULT_GRAPH_MAP]);
+  const [activeGraphMapId, setActiveGraphMapId] = useState<string>(DEFAULT_GRAPH_MAP_ID);
   const [graphSnapshots, setGraphSnapshots] = useState<GraphSnapshot[]>([]);
   const [activeGraphId, setActiveGraphId] = useState<string | null>(null);
   const [graphNavigationContext, setGraphNavigationContext] = useState<{ linkId: string; snapshotLabel: string } | null>(null);
@@ -97,9 +192,12 @@ export default function App() {
     excludeIds: string[];
     pos: { x: number; y: number };
   } | null>(null);
+  const [themeMode, setThemeMode] = useState<UiThemeMode>(readThemePreference);
+  const [brightnessPanelOpen, setBrightnessPanelOpen] = useState(false);
 
   const editorRef = useRef<any>(null);
   const importProjectInputRef = useRef<HTMLInputElement | null>(null);
+  const selectedTheme = THEME_PRESETS[themeMode];
 
   const buildWorkspaceData = () => ({
     title,
@@ -125,6 +223,8 @@ export default function App() {
     fragmentLinks,
     content: editor?.getJSON() ?? '',
     chapters,
+    graphMaps,
+    activeGraphMapId,
     graphSnapshots,
     activeGraphId,
   });
@@ -173,7 +273,16 @@ export default function App() {
     );
 
   const editor = useEditor({
-    extensions: [StarterKit, TodoMark, BlockIdExtension, ChapterPageExtension, EntityLinkMark],
+    extensions: [
+      StarterKit,
+      TextStyleMark,
+      UnderlineMark,
+      ParagraphFormatExtension,
+      TodoMark,
+      BlockIdExtension,
+      ChapterPageExtension,
+      EntityLinkMark,
+    ],
     content: '',
     onUpdate: ({ editor }) => {
       const newHeadings: any[] =[];
@@ -211,6 +320,10 @@ export default function App() {
   }, [editor]);
 
   useEffect(() => {
+    window.localStorage.setItem(UI_THEME_STORAGE_KEY, themeMode);
+  }, [themeMode]);
+
+  useEffect(() => {
     db.loadDocument(DOC_ID).then(data => {
       if (data) {
         setTitle(data.title);
@@ -225,7 +338,16 @@ export default function App() {
         if (data.fragmentLinks) setFragmentLinks(data.fragmentLinks);
         if (editor && data.content) editor.commands.setContent(data.content);
         if (data.chapters) setChapters(data.chapters);
-        if (data.graphSnapshots) setGraphSnapshots(data.graphSnapshots);
+        if (data.graphMaps) setGraphMaps(data.graphMaps);
+        if (data.activeGraphMapId) setActiveGraphMapId(data.activeGraphMapId);
+        if (data.graphSnapshots) {
+          setGraphSnapshots(
+            data.graphSnapshots.map((snapshot: GraphSnapshot) => ({
+              ...snapshot,
+              mapId: snapshot.mapId ?? data.activeGraphMapId ?? DEFAULT_GRAPH_MAP_ID,
+            }))
+          );
+        }
         if (data.activeGraphId) setActiveGraphId(data.activeGraphId);
       }
       setIsLoaded(true);
@@ -244,7 +366,7 @@ export default function App() {
       db.saveDocument(DOC_ID, buildPersistedDocumentData());
     }, 1000);
     return () => clearTimeout(timeout);
-  },[title, categories, entities, relations, todos, versions, activeVersionId, pendingUpdatedAt, pendingBaseVersionId, fragmentLinks, chapters, editor?.state.doc, isLoaded, graphSnapshots, activeGraphId]);
+  },[title, categories, entities, relations, todos, versions, activeVersionId, pendingUpdatedAt, pendingBaseVersionId, fragmentLinks, chapters, editor?.state.doc, isLoaded, graphMaps, activeGraphMapId, graphSnapshots, activeGraphId]);
 
   useEffect(() => {
     if (!editor || !isLoaded) return;
@@ -558,6 +680,9 @@ export default function App() {
 
   const openGraphSnapshot = (snapshotId: string, linkId: string) => {
     const snapshot = graphSnapshots.find(item => item.id === snapshotId);
+    if (snapshot?.mapId) {
+      setActiveGraphMapId(snapshot.mapId);
+    }
     setActiveGraphId(snapshotId);
     setView('graph');
     setMainSidebarOpen(false);
@@ -615,7 +740,12 @@ export default function App() {
       setPendingBaseVersionId(imported.pendingBaseVersionId ?? null);
       setFragmentLinks(imported.fragmentLinks ?? {});
       setChapters(imported.chapters ?? []);
-      setGraphSnapshots(imported.graphSnapshots ?? []);
+      setGraphMaps(imported.graphMaps ?? [DEFAULT_GRAPH_MAP]);
+      setActiveGraphMapId(imported.activeGraphMapId ?? DEFAULT_GRAPH_MAP_ID);
+      setGraphSnapshots((imported.graphSnapshots ?? []).map((snapshot: GraphSnapshot) => ({
+        ...snapshot,
+        mapId: snapshot.mapId ?? imported.activeGraphMapId ?? DEFAULT_GRAPH_MAP_ID,
+      })));
       setActiveGraphId(imported.activeGraphId ?? null);
       editor.commands.setContent(imported.content ?? '');
       setView('editor');
@@ -637,7 +767,12 @@ export default function App() {
         fragmentLinks: imported.fragmentLinks ?? {},
         content: imported.content ?? '',
         chapters: imported.chapters ?? [],
-        graphSnapshots: imported.graphSnapshots ?? [],
+        graphMaps: imported.graphMaps ?? [DEFAULT_GRAPH_MAP],
+        activeGraphMapId: imported.activeGraphMapId ?? DEFAULT_GRAPH_MAP_ID,
+        graphSnapshots: (imported.graphSnapshots ?? []).map((snapshot: GraphSnapshot) => ({
+          ...snapshot,
+          mapId: snapshot.mapId ?? imported.activeGraphMapId ?? DEFAULT_GRAPH_MAP_ID,
+        })),
         activeGraphId: imported.activeGraphId ?? null,
       });
     } catch {
@@ -754,6 +889,7 @@ export default function App() {
     <div
       className={`app-layout ${mainSidebarOpen ? '' : 'focus-mode'}`}
       style={{
+        ...selectedTheme.vars,
         position: 'fixed', // Questo bypassa il contenitore max-width del #root di Vite!
         inset: 0, // Significa top:0, left:0, right:0, bottom:0
         display: 'flex',
@@ -771,7 +907,35 @@ export default function App() {
         }
       }}
     >
-      
+      <div className="brightness-control" onClick={event => event.stopPropagation()}>
+        <button
+          className="brightness-toggle"
+          onClick={() => setBrightnessPanelOpen(open => !open)}
+          title="Cambia tema interfaccia"
+        >
+          {themeMode === 'dark' ? <Moon size={15} /> : <Sun size={15} />}
+        </button>
+        {brightnessPanelOpen && (
+          <div className="brightness-popover">
+            <div className="brightness-popover-header">
+              <span>Tema</span>
+              <strong>{selectedTheme.label}</strong>
+            </div>
+            <div className="brightness-popover-actions">
+              {(['light', 'shadow', 'dark'] as UiThemeMode[]).map(mode => (
+                <button
+                  key={mode}
+                  className={themeMode === mode ? 'active' : ''}
+                  onClick={() => setThemeMode(mode)}
+                >
+                  {THEME_PRESETS[mode].label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* ─── SIDEBAR PRINCIPALE ─── */}
       <div style={{
         width: mainSidebarOpen ? 'var(--sb-width)' : '0px',
@@ -881,6 +1045,7 @@ export default function App() {
               </div>
 
               <div className="editor-wrap">
+                {editor && <EditorToolbar editor={editor} />}
                 {editor && (
                   <BubbleMenu
                     editor={editor}
@@ -987,6 +1152,10 @@ export default function App() {
             <GraphView
               entities={entities}
               categories={categories}
+              graphMaps={graphMaps}
+              setGraphMaps={setGraphMaps}
+              activeGraphMapId={activeGraphMapId}
+              setActiveGraphMapId={setActiveGraphMapId}
               graphSnapshots={graphSnapshots}
               setGraphSnapshots={setGraphSnapshots}
               activeGraphId={activeGraphId}
