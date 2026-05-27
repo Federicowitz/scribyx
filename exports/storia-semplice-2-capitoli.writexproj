@@ -1,0 +1,321 @@
+{
+  "format": "writex-project",
+  "schemaVersion": 1,
+  "exportedAt": 1778622600000,
+  "document": {
+    "title": "La chiave sotto il ponte",
+    "categories": [
+      { "id": "cat-chars", "name": "Personaggi", "icon": "User" },
+      { "id": "cat-locs", "name": "Luoghi", "icon": "Map" },
+      { "id": "cat-objs", "name": "Oggetti", "icon": "Box" },
+      { "id": "cat-groups", "name": "Gruppi", "icon": "Users" }
+    ],
+    "entities": [
+      {
+        "id": "ent-mara",
+        "categoryId": "cat-chars",
+        "name": "Mara",
+        "avatar": "Ma",
+        "desc": "Una ragazza curiosa che ascolta prima di parlare.",
+        "fields": [
+          { "id": "field-mara-goal", "title": "Obiettivo", "value": "Capire perche la chiave e stata nascosta." }
+        ]
+      },
+      {
+        "id": "ent-nico",
+        "categoryId": "cat-chars",
+        "name": "Nico",
+        "avatar": "Ni",
+        "desc": "Il fratello minore di Mara, rapido a notare i dettagli.",
+        "fields": [
+          { "id": "field-nico-trait", "title": "Tratto", "value": "Coraggioso quando serve." }
+        ]
+      },
+      {
+        "id": "ent-elia",
+        "categoryId": "cat-chars",
+        "name": "Elia",
+        "avatar": "El",
+        "desc": "Un vecchio bibliotecario che conosce la storia del paese.",
+        "fields": [
+          { "id": "field-elia-secret", "title": "Segreto", "value": "Ha lasciato indizi per proteggere l'archivio." }
+        ]
+      }
+    ],
+    "relations": [
+      { "id": "rel-link-mara-1", "sourceId": "link-mara-1", "targetId": "ent-mara", "type": "mention" },
+      { "id": "rel-link-nico-1", "sourceId": "link-nico-1", "targetId": "ent-nico", "type": "mention" },
+      { "id": "rel-link-elia-1", "sourceId": "link-elia-1", "targetId": "ent-elia", "type": "mention" },
+      { "id": "rel-link-mara-2", "sourceId": "link-mara-2", "targetId": "ent-mara", "type": "mention" },
+      { "id": "rel-link-nico-2", "sourceId": "link-nico-2", "targetId": "ent-nico", "type": "mention" },
+      { "id": "rel-link-elia-2", "sourceId": "link-elia-2", "targetId": "ent-elia", "type": "mention" }
+    ],
+    "todos": [],
+    "versions": [
+      {
+        "id": "global-commit-1",
+        "parentId": null,
+        "label": "Bozza iniziale con personaggi",
+        "branch": "main",
+        "timestamp": 1778622300000,
+        "data": {
+          "title": "La chiave sotto il ponte",
+          "content": {
+            "type": "doc",
+            "content": [
+              { "type": "heading", "attrs": { "level": 1, "id": "chapter-ponte" }, "content": [{ "type": "text", "text": "Il ponte" }] },
+              { "type": "paragraph", "attrs": { "id": "p-1" }, "content": [{ "type": "text", "text": "Mara e Nico trovano una chiave arrugginita sotto il ponte vecchio." }] },
+              { "type": "paragraph", "attrs": { "id": "p-2" }, "content": [{ "type": "text", "text": "Sul manico c'e inciso un piccolo libro aperto." }] },
+              { "type": "heading", "attrs": { "level": 1, "id": "chapter-archivio" }, "content": [{ "type": "text", "text": "L'archivio" }] },
+              { "type": "paragraph", "attrs": { "id": "p-3" }, "content": [{ "type": "text", "text": "I due portano la chiave a Elia, il bibliotecario del paese." }] },
+              { "type": "paragraph", "attrs": { "id": "p-4" }, "content": [{ "type": "text", "text": "Elia sorride e apre una porta nascosta dietro gli scaffali." }] }
+            ]
+          },
+          "categories": [
+            { "id": "cat-chars", "name": "Personaggi", "icon": "User" },
+            { "id": "cat-locs", "name": "Luoghi", "icon": "Map" },
+            { "id": "cat-objs", "name": "Oggetti", "icon": "Box" },
+            { "id": "cat-groups", "name": "Gruppi", "icon": "Users" }
+          ],
+          "entities": [
+            { "id": "ent-mara", "categoryId": "cat-chars", "name": "Mara", "avatar": "Ma", "desc": "Una ragazza curiosa che ascolta prima di parlare.", "fields": [] },
+            { "id": "ent-nico", "categoryId": "cat-chars", "name": "Nico", "avatar": "Ni", "desc": "Il fratello minore di Mara, rapido a notare i dettagli.", "fields": [] },
+            { "id": "ent-elia", "categoryId": "cat-chars", "name": "Elia", "avatar": "El", "desc": "Un vecchio bibliotecario che conosce la storia del paese.", "fields": [] }
+          ],
+          "relations": [],
+          "todos": [],
+          "fragmentLinks": {},
+          "chapterVersions": {}
+        }
+      },
+      {
+        "id": "global-commit-2",
+        "parentId": "global-commit-1",
+        "label": "Revisione con collegamenti e capitoli finali",
+        "branch": "main",
+        "timestamp": 1778622500000,
+        "data": {
+          "title": "La chiave sotto il ponte",
+          "content": {
+            "type": "doc",
+            "content": [
+              { "type": "heading", "attrs": { "level": 1, "id": "chapter-ponte" }, "content": [{ "type": "text", "text": "Il ponte" }] },
+              { "type": "paragraph", "attrs": { "id": "p-1" }, "content": [
+                { "type": "text", "text": "Mara", "marks": [{ "type": "entityLink", "attrs": { "linkId": "link-mara-1" } }] },
+                { "type": "text", "text": " e " },
+                { "type": "text", "text": "Nico", "marks": [{ "type": "entityLink", "attrs": { "linkId": "link-nico-1" } }] },
+                { "type": "text", "text": " trovano una chiave arrugginita sotto il ponte vecchio." }
+              ] },
+              { "type": "paragraph", "attrs": { "id": "p-2" }, "content": [{ "type": "text", "text": "Sul manico c'e inciso un piccolo libro aperto." }] },
+              { "type": "paragraph", "attrs": { "id": "p-3" }, "content": [{ "type": "text", "text": "Nessuno dei due sa a quale serratura possa appartenere." }] },
+              { "type": "paragraph", "attrs": { "id": "p-4" }, "content": [{ "type": "text", "text": "Quando il sole cala, decidono di chiedere aiuto alla biblioteca." }] },
+              { "type": "heading", "attrs": { "level": 1, "id": "chapter-archivio" }, "content": [{ "type": "text", "text": "L'archivio" }] },
+              { "type": "paragraph", "attrs": { "id": "p-5" }, "content": [
+                { "type": "text", "text": "Elia", "marks": [{ "type": "entityLink", "attrs": { "linkId": "link-elia-1" } }] },
+                { "type": "text", "text": " guarda la chiave e smette subito di scherzare." }
+              ] },
+              { "type": "paragraph", "attrs": { "id": "p-6" }, "content": [
+                { "type": "text", "text": "Conduce " },
+                { "type": "text", "text": "Mara", "marks": [{ "type": "entityLink", "attrs": { "linkId": "link-mara-2" } }] },
+                { "type": "text", "text": " e " },
+                { "type": "text", "text": "Nico", "marks": [{ "type": "entityLink", "attrs": { "linkId": "link-nico-2" } }] },
+                { "type": "text", "text": " davanti a uno scaffale di atlanti polverosi." }
+              ] },
+              { "type": "paragraph", "attrs": { "id": "p-7" }, "content": [{ "type": "text", "text": "La chiave apre una porticina bassa, nascosta dietro il legno." }] },
+              { "type": "paragraph", "attrs": { "id": "p-8" }, "content": [
+                { "type": "text", "text": "Dentro c'e l'archivio perduto del paese, e " },
+                { "type": "text", "text": "Elia", "marks": [{ "type": "entityLink", "attrs": { "linkId": "link-elia-2" } }] },
+                { "type": "text", "text": " ammette di aver aspettato qualcuno abbastanza curioso da trovarlo." }
+              ] }
+            ]
+          },
+          "categories": [
+            { "id": "cat-chars", "name": "Personaggi", "icon": "User" },
+            { "id": "cat-locs", "name": "Luoghi", "icon": "Map" },
+            { "id": "cat-objs", "name": "Oggetti", "icon": "Box" },
+            { "id": "cat-groups", "name": "Gruppi", "icon": "Users" }
+          ],
+          "entities": [
+            { "id": "ent-mara", "categoryId": "cat-chars", "name": "Mara", "avatar": "Ma", "desc": "Una ragazza curiosa che ascolta prima di parlare.", "fields": [{ "id": "field-mara-goal", "title": "Obiettivo", "value": "Capire perche la chiave e stata nascosta." }] },
+            { "id": "ent-nico", "categoryId": "cat-chars", "name": "Nico", "avatar": "Ni", "desc": "Il fratello minore di Mara, rapido a notare i dettagli.", "fields": [{ "id": "field-nico-trait", "title": "Tratto", "value": "Coraggioso quando serve." }] },
+            { "id": "ent-elia", "categoryId": "cat-chars", "name": "Elia", "avatar": "El", "desc": "Un vecchio bibliotecario che conosce la storia del paese.", "fields": [{ "id": "field-elia-secret", "title": "Segreto", "value": "Ha lasciato indizi per proteggere l'archivio." }] }
+          ],
+          "relations": [
+            { "id": "rel-link-mara-1", "sourceId": "link-mara-1", "targetId": "ent-mara", "type": "mention" },
+            { "id": "rel-link-nico-1", "sourceId": "link-nico-1", "targetId": "ent-nico", "type": "mention" },
+            { "id": "rel-link-elia-1", "sourceId": "link-elia-1", "targetId": "ent-elia", "type": "mention" },
+            { "id": "rel-link-mara-2", "sourceId": "link-mara-2", "targetId": "ent-mara", "type": "mention" },
+            { "id": "rel-link-nico-2", "sourceId": "link-nico-2", "targetId": "ent-nico", "type": "mention" },
+            { "id": "rel-link-elia-2", "sourceId": "link-elia-2", "targetId": "ent-elia", "type": "mention" }
+          ],
+          "todos": [],
+          "fragmentLinks": {
+            "link-mara-1": { "entityIds": ["ent-mara"], "todoIds": [] },
+            "link-nico-1": { "entityIds": ["ent-nico"], "todoIds": [] },
+            "link-elia-1": { "entityIds": ["ent-elia"], "todoIds": [] },
+            "link-mara-2": { "entityIds": ["ent-mara"], "todoIds": [] },
+            "link-nico-2": { "entityIds": ["ent-nico"], "todoIds": [] },
+            "link-elia-2": { "entityIds": ["ent-elia"], "todoIds": [] }
+          },
+          "chapterVersions": {
+            "chapter-ponte": "chapter-ponte-commit-1",
+            "chapter-archivio": "chapter-archivio-commit-1"
+          }
+        }
+      }
+    ],
+    "activeVersionId": "global-commit-2",
+    "pendingUpdatedAt": 1778622600000,
+    "pendingBaseVersionId": "global-commit-2",
+    "fragmentLinks": {
+      "link-mara-1": { "entityIds": ["ent-mara"], "todoIds": [] },
+      "link-nico-1": { "entityIds": ["ent-nico"], "todoIds": [] },
+      "link-elia-1": { "entityIds": ["ent-elia"], "todoIds": [] },
+      "link-mara-2": { "entityIds": ["ent-mara"], "todoIds": [] },
+      "link-nico-2": { "entityIds": ["ent-nico"], "todoIds": [] },
+      "link-elia-2": { "entityIds": ["ent-elia"], "todoIds": [] }
+    },
+    "content": {
+      "type": "doc",
+      "content": [
+        { "type": "heading", "attrs": { "level": 1, "id": "chapter-ponte" }, "content": [{ "type": "text", "text": "Il ponte" }] },
+        { "type": "paragraph", "attrs": { "id": "p-1" }, "content": [
+          { "type": "text", "text": "Mara", "marks": [{ "type": "entityLink", "attrs": { "linkId": "link-mara-1" } }] },
+          { "type": "text", "text": " e " },
+          { "type": "text", "text": "Nico", "marks": [{ "type": "entityLink", "attrs": { "linkId": "link-nico-1" } }] },
+          { "type": "text", "text": " trovano una chiave arrugginita sotto il ponte vecchio." }
+        ] },
+        { "type": "paragraph", "attrs": { "id": "p-2" }, "content": [{ "type": "text", "text": "Sul manico c'e inciso un piccolo libro aperto." }] },
+        { "type": "paragraph", "attrs": { "id": "p-3" }, "content": [{ "type": "text", "text": "Nessuno dei due sa a quale serratura possa appartenere." }] },
+        { "type": "paragraph", "attrs": { "id": "p-4" }, "content": [{ "type": "text", "text": "Quando il sole cala, decidono di chiedere aiuto alla biblioteca." }] },
+        { "type": "heading", "attrs": { "level": 1, "id": "chapter-archivio" }, "content": [{ "type": "text", "text": "L'archivio" }] },
+        { "type": "paragraph", "attrs": { "id": "p-5" }, "content": [
+          { "type": "text", "text": "Elia", "marks": [{ "type": "entityLink", "attrs": { "linkId": "link-elia-1" } }] },
+          { "type": "text", "text": " guarda la chiave e smette subito di scherzare." }
+        ] },
+        { "type": "paragraph", "attrs": { "id": "p-6" }, "content": [
+          { "type": "text", "text": "Conduce " },
+          { "type": "text", "text": "Mara", "marks": [{ "type": "entityLink", "attrs": { "linkId": "link-mara-2" } }] },
+          { "type": "text", "text": " e " },
+          { "type": "text", "text": "Nico", "marks": [{ "type": "entityLink", "attrs": { "linkId": "link-nico-2" } }] },
+          { "type": "text", "text": " davanti a uno scaffale di atlanti polverosi." }
+        ] },
+        { "type": "paragraph", "attrs": { "id": "p-7" }, "content": [{ "type": "text", "text": "La chiave apre una porticina bassa, nascosta dietro il legno." }] },
+        { "type": "paragraph", "attrs": { "id": "p-8" }, "content": [
+          { "type": "text", "text": "Dentro c'e l'archivio perduto del paese, e " },
+          { "type": "text", "text": "Elia", "marks": [{ "type": "entityLink", "attrs": { "linkId": "link-elia-2" } }] },
+          { "type": "text", "text": " ammette di aver aspettato qualcuno abbastanza curioso da trovarlo." }
+        ] }
+      ]
+    },
+    "chapters": [
+      {
+        "id": "chapter-ponte",
+        "title": "Il ponte",
+        "order": 0,
+        "status": "revised",
+        "activeSnapshotId": "chapter-ponte-commit-1",
+        "snapshots": [
+          {
+            "id": "chapter-ponte-commit-1",
+            "parentId": null,
+            "branch": "main",
+            "label": "Capitolo 1 revisionato",
+            "timestamp": 1778622400000,
+            "content": {
+              "type": "doc",
+              "content": [
+                { "type": "heading", "attrs": { "level": 1, "id": "chapter-ponte" }, "content": [{ "type": "text", "text": "Il ponte" }] },
+                { "type": "paragraph", "attrs": { "id": "p-1" }, "content": [
+                  { "type": "text", "text": "Mara", "marks": [{ "type": "entityLink", "attrs": { "linkId": "link-mara-1" } }] },
+                  { "type": "text", "text": " e " },
+                  { "type": "text", "text": "Nico", "marks": [{ "type": "entityLink", "attrs": { "linkId": "link-nico-1" } }] },
+                  { "type": "text", "text": " trovano una chiave arrugginita sotto il ponte vecchio." }
+                ] },
+                { "type": "paragraph", "attrs": { "id": "p-2" }, "content": [{ "type": "text", "text": "Sul manico c'e inciso un piccolo libro aperto." }] },
+                { "type": "paragraph", "attrs": { "id": "p-3" }, "content": [{ "type": "text", "text": "Nessuno dei due sa a quale serratura possa appartenere." }] },
+                { "type": "paragraph", "attrs": { "id": "p-4" }, "content": [{ "type": "text", "text": "Quando il sole cala, decidono di chiedere aiuto alla biblioteca." }] }
+              ]
+            },
+            "entityRefs": ["ent-mara", "ent-nico"],
+            "fragmentLinks": {
+              "link-mara-1": { "entityIds": ["ent-mara"], "todoIds": [] },
+              "link-nico-1": { "entityIds": ["ent-nico"], "todoIds": [] }
+            },
+            "wordCount": 33
+          }
+        ]
+      },
+      {
+        "id": "chapter-archivio",
+        "title": "L'archivio",
+        "order": 1,
+        "status": "revised",
+        "activeSnapshotId": "chapter-archivio-commit-1",
+        "snapshots": [
+          {
+            "id": "chapter-archivio-commit-1",
+            "parentId": null,
+            "branch": "main",
+            "label": "Capitolo 2 revisionato",
+            "timestamp": 1778622450000,
+            "content": {
+              "type": "doc",
+              "content": [
+                { "type": "heading", "attrs": { "level": 1, "id": "chapter-archivio" }, "content": [{ "type": "text", "text": "L'archivio" }] },
+                { "type": "paragraph", "attrs": { "id": "p-5" }, "content": [
+                  { "type": "text", "text": "Elia", "marks": [{ "type": "entityLink", "attrs": { "linkId": "link-elia-1" } }] },
+                  { "type": "text", "text": " guarda la chiave e smette subito di scherzare." }
+                ] },
+                { "type": "paragraph", "attrs": { "id": "p-6" }, "content": [
+                  { "type": "text", "text": "Conduce " },
+                  { "type": "text", "text": "Mara", "marks": [{ "type": "entityLink", "attrs": { "linkId": "link-mara-2" } }] },
+                  { "type": "text", "text": " e " },
+                  { "type": "text", "text": "Nico", "marks": [{ "type": "entityLink", "attrs": { "linkId": "link-nico-2" } }] },
+                  { "type": "text", "text": " davanti a uno scaffale di atlanti polverosi." }
+                ] },
+                { "type": "paragraph", "attrs": { "id": "p-7" }, "content": [{ "type": "text", "text": "La chiave apre una porticina bassa, nascosta dietro il legno." }] },
+                { "type": "paragraph", "attrs": { "id": "p-8" }, "content": [
+                  { "type": "text", "text": "Dentro c'e l'archivio perduto del paese, e " },
+                  { "type": "text", "text": "Elia", "marks": [{ "type": "entityLink", "attrs": { "linkId": "link-elia-2" } }] },
+                  { "type": "text", "text": " ammette di aver aspettato qualcuno abbastanza curioso da trovarlo." }
+                ] }
+              ]
+            },
+            "entityRefs": ["ent-elia", "ent-mara", "ent-nico"],
+            "fragmentLinks": {
+              "link-elia-1": { "entityIds": ["ent-elia"], "todoIds": [] },
+              "link-mara-2": { "entityIds": ["ent-mara"], "todoIds": [] },
+              "link-nico-2": { "entityIds": ["ent-nico"], "todoIds": [] },
+              "link-elia-2": { "entityIds": ["ent-elia"], "todoIds": [] }
+            },
+            "wordCount": 43
+          }
+        ]
+      }
+    ],
+    "graphMaps": [
+      { "id": "graph-map-main", "label": "Mappa principale", "order": 0, "createdAt": 1778622200000 }
+    ],
+    "activeGraphMapId": "graph-map-main",
+    "graphSnapshots": [
+      {
+        "id": "graph-snapshot-1",
+        "mapId": "graph-map-main",
+        "label": "Relazioni iniziali",
+        "timestamp": 1778622550000,
+        "order": 0,
+        "nodes": [
+          { "entityId": "ent-mara", "position": { "x": 80, "y": 80 }, "mapRole": "entity" },
+          { "entityId": "ent-nico", "position": { "x": 280, "y": 80 }, "mapRole": "entity" },
+          { "entityId": "ent-elia", "position": { "x": 180, "y": 240 }, "mapRole": "entity" }
+        ],
+        "edges": [
+          { "id": "edge-mara-nico", "sourceId": "ent-mara", "targetId": "ent-nico", "type": "ALLEATO" },
+          { "id": "edge-elia-mara", "sourceId": "ent-elia", "targetId": "ent-mara", "type": "CAUSA" }
+        ]
+      }
+    ],
+    "activeGraphId": "graph-snapshot-1"
+  }
+}
