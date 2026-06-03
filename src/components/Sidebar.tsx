@@ -99,7 +99,7 @@ export function Sidebar({
                   <FileUp size={13} /> Importa progetto
                 </button>
               )}
-              <button className="utils-menu-item" onClick={() => { window.location.href = `${import.meta.env.BASE_URL}cloud`; }}>
+              <button className="utils-menu-item" onClick={() => { window.location.href = `${import.meta.env.BASE_URL}?cloud=1`; }}>
                 <Cloud size={13} /> Cloud
               </button>
             </div>

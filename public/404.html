@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>WriteX</title>
+    <script>
+      (function () {
+        var base = '/scribyx/';
+        var path = window.location.pathname;
+        var search = window.location.search || '';
+        var hash = window.location.hash || '';
+
+        if (path === '/scribyx/cloud' || path === '/scribyx/cloud/') {
+          window.location.replace(base + '?cloud=1' + hash);
+          return;
+        }
+
+        window.location.replace(base + search + hash);
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>
