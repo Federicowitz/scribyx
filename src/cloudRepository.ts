@@ -4,6 +4,7 @@ import { supabase } from './supabaseClient';
 import type { WritexProjectDocument } from './types';
 
 export const LOCAL_DOC_ID = 'main-workspace';
+const CLOUD_PROJECT_CACHE_PREFIX = 'cloud-project:';
 
 export type CloudRole = 'owner' | 'viewer';
 
@@ -32,6 +33,16 @@ type CloudProjectRow = {
   updated_at: string;
 };
 
+export type CachedCloudProject = {
+  cacheType: 'cloud-project';
+  cloudProjectId: string;
+  title: string;
+  role: CloudRole;
+  remoteUpdatedAt: string;
+  cachedAt: number;
+  document: WritexProjectDocument;
+};
+
 function requireClient() {
   if (!supabase) {
     throw new Error('Supabase non configurato. Imposta VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.');
@@ -45,6 +56,34 @@ function normalizeIdentifier(identifier: string) {
 
 export async function loadLocalProjectDocument() {
   return db.loadDocument(LOCAL_DOC_ID) as Promise<WritexProjectDocument | null>;
+}
+
+export async function loadCachedCloudProject(projectId: string) {
+  return db.loadDocument(`${CLOUD_PROJECT_CACHE_PREFIX}${projectId}`) as Promise<CachedCloudProject | null>;
+}
+
+export async function saveCachedCloudProject(input: {
+  projectId: string;
+  title: string;
+  role: CloudRole;
+  remoteUpdatedAt: string;
+  document: WritexProjectDocument;
+}) {
+  const cached: CachedCloudProject = {
+    cacheType: 'cloud-project',
+    cloudProjectId: input.projectId,
+    title: input.title,
+    role: input.role,
+    remoteUpdatedAt: input.remoteUpdatedAt,
+    cachedAt: Date.now(),
+    document: input.document,
+  };
+  await db.saveDocument(`${CLOUD_PROJECT_CACHE_PREFIX}${input.projectId}`, cached);
+  return cached;
+}
+
+export async function clearIndexedDbCache() {
+  await db.clearAll();
 }
 
 export async function getCurrentUser() {
@@ -106,6 +145,22 @@ export async function getCloudProject(projectId: string, userId: string) {
   };
 }
 
+export async function getCloudProjectMetadata(projectId: string, userId: string) {
+  const client = requireClient();
+  const { data, error } = await client
+    .from('projects')
+    .select('id,title,owner_id,created_at,updated_at')
+    .eq('id', projectId)
+    .single();
+  if (error) throw error;
+
+  const project = data as Omit<CloudProjectRow, 'document'>;
+  return {
+    ...project,
+    role: project.owner_id === userId ? 'owner' : 'viewer',
+  };
+}
+
 export async function createCloudProject(title: string, document: WritexProjectDocument) {
   const client = requireClient();
   const { data, error } = await client
@@ -117,7 +172,15 @@ export async function createCloudProject(title: string, document: WritexProjectD
     .select('id,title,owner_id,created_at,updated_at')
     .single();
   if (error) throw error;
-  return data as Omit<CloudProjectRow, 'document'>;
+  const project = data as Omit<CloudProjectRow, 'document'>;
+  await saveCachedCloudProject({
+    projectId: project.id,
+    title: project.title,
+    role: 'owner',
+    remoteUpdatedAt: project.updated_at,
+    document,
+  });
+  return project;
 }
 
 export async function updateCloudProject(projectId: string, document: WritexProjectDocument) {
@@ -133,7 +196,15 @@ export async function updateCloudProject(projectId: string, document: WritexProj
     .select('id,title,owner_id,created_at,updated_at')
     .single();
   if (error) throw error;
-  return data as Omit<CloudProjectRow, 'document'>;
+  const project = data as Omit<CloudProjectRow, 'document'>;
+  await saveCachedCloudProject({
+    projectId: project.id,
+    title: project.title,
+    role: 'owner',
+    remoteUpdatedAt: project.updated_at,
+    document,
+  });
+  return project;
 }
 
 export async function listProjectShares(projectId: string) {

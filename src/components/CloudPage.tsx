@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type Dispatch, type FormEvent, type React
 import { Cloud, Eye, LogOut, RefreshCw, Save, Trash2, UserPlus } from 'lucide-react';
 import {
   addProjectShare,
+  clearIndexedDbCache,
   createCloudProject,
   getProfile,
   listCloudProjects,
@@ -181,6 +182,20 @@ export function CloudPage() {
     });
   };
 
+  const handleFlushIndexedDb = async () => {
+    const confirmed = window.confirm(
+      'Svuotare tutto IndexedDB locale? Verranno rimossi workspace offline e cache dei progetti cloud da questo browser. I progetti su Supabase non verranno cancellati.'
+    );
+    if (!confirmed) return;
+
+    await run(async () => {
+      await clearIndexedDbCache();
+      setLocalDocument(null);
+      setNewProjectTitle('');
+      setMessage('IndexedDB locale svuotato.');
+    });
+  };
+
   if (!isSupabaseConfigured) {
     return (
       <CloudShell>
@@ -262,6 +277,16 @@ export function CloudPage() {
               shareInput={{}}
               onShareInput={setShareInput}
             />
+
+            <div className="cloud-section">
+              <h2>Impostazioni locali</h2>
+              <p className="cloud-empty">
+                IndexedDB contiene il workspace offline e le copie cache dei progetti cloud aperti da questo browser.
+              </p>
+              <button disabled={busy} onClick={handleFlushIndexedDb}>
+                Svuota IndexedDB locale
+              </button>
+            </div>
           </>
         )}
 

@@ -151,13 +151,15 @@ export function Sidebar({
             >
               Grafo
             </button>
-            <button 
-              className={`btn-secondary ${currentView === 'versions' ? 'active' : ''}`} 
-              style={{ flex: 1, minWidth: '100%' }} 
-              onClick={() => setView('versions')}
-            >
-              Versioni (Timeline)
-            </button>
+            {!readOnly && (
+              <button 
+                className={`btn-secondary ${currentView === 'versions' ? 'active' : ''}`} 
+                style={{ flex: 1, minWidth: '100%' }} 
+                onClick={() => setView('versions')}
+              >
+                Versioni (Timeline)
+              </button>
+            )}
           </div>
         </Panel>
 

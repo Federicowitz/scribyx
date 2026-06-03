@@ -26,7 +26,7 @@ import { ChapterHistoryDrawer } from './components/ChapterHistoryDrawer';
 import type { Chapter, ChapterSnapshot, ChapterStatus } from './types';
 import { GraphView } from './components/GraphView';
 import { EditorToolbar } from './components/EditorToolbar';
-import { getCloudProject, getCurrentUser, type CloudRole } from './cloudRepository';
+import { getCloudProject, getCloudProjectMetadata, getCurrentUser, loadCachedCloudProject, saveCachedCloudProject, type CloudRole } from './cloudRepository';
 import './global.css';
 
 const DOC_ID = 'main-workspace';
@@ -330,6 +330,12 @@ export default function App() {
   }, [editor, isReadOnly]);
 
   useEffect(() => {
+    if (isReadOnly && view === 'versions') {
+      setView('editor');
+    }
+  }, [isReadOnly, view]);
+
+  useEffect(() => {
     window.localStorage.setItem(UI_THEME_STORAGE_KEY, themeMode);
   }, [themeMode]);
 
@@ -375,12 +381,45 @@ export default function App() {
         .then(async () => {
           const user = await getCurrentUser();
           if (!user) throw new Error('Fai login dalla pagina cloud prima di aprire questo progetto.');
+          const cached = await loadCachedCloudProject(cloudProjectId);
+          const metadata = await getCloudProjectMetadata(cloudProjectId, user.id);
+          const metadataRole = metadata.role as CloudRole;
+
+          if (cached?.remoteUpdatedAt === metadata.updated_at) {
+            applyDocument(cached.document);
+            setCloudContext({
+              projectId: cached.cloudProjectId,
+              title: metadata.title,
+              role: metadataRole,
+            });
+            setIsLoaded(true);
+            return;
+          }
+
           const project = await getCloudProject(cloudProjectId, user.id);
           applyDocument(project.document);
           setCloudContext({ projectId: project.id, title: project.title, role: project.role as CloudRole });
+          await saveCachedCloudProject({
+            projectId: project.id,
+            title: project.title,
+            role: project.role as CloudRole,
+            remoteUpdatedAt: project.updated_at,
+            document: project.document,
+          });
           setIsLoaded(true);
         })
-        .catch(error => {
+        .catch(async error => {
+          const cached = await loadCachedCloudProject(cloudProjectId);
+          if (cached) {
+            applyDocument(cached.document);
+            setCloudContext({
+              projectId: cached.cloudProjectId,
+              title: cached.title,
+              role: cached.role,
+            });
+            setIsLoaded(true);
+            return;
+          }
           setCloudLoadError(error instanceof Error ? error.message : 'Impossibile caricare il progetto cloud.');
           setIsLoaded(true);
         });

@@ -35,5 +35,15 @@ export const db = {
       request.onsuccess = () => resolve(request.result || null);
       request.onerror = () => reject(tx.error);
     });
+  },
+
+  async clearAll(): Promise<void> {
+    const database = await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = database.transaction(STORE_DOCS, 'readwrite');
+      tx.objectStore(STORE_DOCS).clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
   }
 };
