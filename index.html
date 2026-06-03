@@ -3,10 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/scribyx/favicon.png" />
+    <link rel="agent-tools" href="/scribyx/writex-agent-tool.json">
+    <meta name="agent-bridge" content="window.writexAgent">
+    <script type="application/json" id="writex-agent-manifest">
+      {
+        "name": "WriteX",
+        "bridge": "hash",
+        "hashPrefix": "#writex-agent=",
+        "resultElement": "#writex-agent-result"
+      }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>writex</title>
-    <script type="module" crossorigin src="/scribyx/assets/index-hpdDpzqO.js"></script>
-    <link rel="stylesheet" crossorigin href="/scribyx/assets/index-CnJaWGQc.css">
+    <script type="module" crossorigin src="/scribyx/assets/index-BPgFb270.js"></script>
+    <link rel="stylesheet" crossorigin href="/scribyx/assets/index-BzPk02E0.css">
   </head>
   <body>
     <div id="root"></div>

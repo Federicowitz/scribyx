@@ -1,0 +1,116 @@
+{
+  "name": "writex_agent",
+  "version": "1.1.0",
+  "description": "Tool contract for external AI agents controlling WriteX through the running web app. Agents should discover tools, choose the right operation, then call a browser bridge. They should not hand-write .writexproj JSON unless explicitly exporting or importing.",
+  "runtime": {
+    "browserGlobal": "window.writexAgent",
+    "singleDispatcher": "window.writexAgent.callTool(name, args)",
+    "toolDiscovery": "window.writexAgent.listTools()",
+    "postMessageBridge": "window.postMessage({ type: 'writex-agent-call', id, name, args }, window.location.origin)",
+    "customEventBridge": "window.dispatchEvent(new CustomEvent('writex-agent-call', { detail: { id, name, args } }))",
+    "hashBridge": "#writex-agent=<encoded JSON { id, name, args }>",
+    "projectShareBridge": "#writex-project=<encoded WriteX project payload>",
+    "domManifest": "#writex-agent-manifest",
+    "domResult": "#writex-agent-result",
+    "domResultStatusAttributes": [
+      "html[data-writex-agent-last-result-id]",
+      "html[data-writex-agent-last-ok]"
+    ],
+    "resultEvent": "writex-agent-result",
+    "lastResult": "window.writexAgentLastResult",
+    "projectStorage": "IndexedDB NarrativeDB.documents.main-workspace",
+    "projectFileExtension": ".writexproj"
+  },
+  "firstTimeAgentProtocol": {
+    "priority": [
+      "Read this manifest from the link[rel=\"agent-tools\"] href or from /scribyx/writex-agent-tool.json.",
+      "Open the app page and inspect #writex-agent-manifest if available.",
+      "If direct page globals are visible, use window.writexAgent.listTools() and window.writexAgent.callTool(name, args).",
+      "If window.writexAgent is undefined, do not treat that as failure. Use the hash bridge and read #writex-agent-result from the DOM.",
+      "Do not automate the visible editor/contenteditable UI unless both direct and hash bridges fail."
+    ],
+    "recommendedForPlaywrightAndDomAgents": "hashBridgeWithDomResult",
+    "hashBridgeWithDomResult": {
+      "callShape": {
+        "type": "writex-agent-call",
+        "id": "unique-command-id",
+        "name": "toolName",
+        "args": {}
+      },
+      "urlTemplate": "/scribyx/#writex-agent=<encodeURIComponent(JSON.stringify(call))>",
+      "waitForResultSelector": "#writex-agent-result",
+      "readResult": "JSON.parse(document.querySelector('#writex-agent-result').textContent)",
+      "successCondition": "result.type === 'writex-agent-result' && result.id === call.id && result.ok === true"
+    },
+    "nonDestructiveSmokeTest": {
+      "name": "getProject",
+      "args": {},
+      "expectedResultShape": "outer result.ok true, inner result.result.ok true, inner result.result.data contains title and chapters"
+    },
+    "importantNotes": [
+      "Some browser automation environments evaluate JavaScript in an isolated world where window.writexAgent is not visible even though the app installed it correctly.",
+      "Changing the URL hash is the compatibility path because the real page receives hashchange in its own main world.",
+      "The DOM result script is intentionally outside #root so React will not overwrite it.",
+      "A large getProject result can be big; use it for smoke tests and id resolution, then call narrower tools when available."
+    ]
+  },
+  "agentWorkflow": [
+    "First choose a bridge using firstTimeAgentProtocol. For generic Playwright/DOM agents, prefer hashBridgeWithDomResult.",
+    "Call listTools() through the chosen bridge to inspect available operations and parameter schemas.",
+    "Call getProject before mutating so ids for chapters, categories, entities, maps, and snapshots are known.",
+    "Use createChapter, createEntity, linkText, createGraphSnapshot, addGraphNode, and addGraphEdge instead of constructing JSON manually.",
+    "Commit chapter snapshots after meaningful chapter changes.",
+    "Commit a global snapshot after a coherent project milestone.",
+    "Call exportProject only at the end when a .writexproj payload is needed.",
+    "Call createShareLink when the user wants a serverless URL that embeds the current story for another browser."
+  ],
+  "dispatcherExamples": [
+    {
+      "intent": "Create a chapter",
+      "call": "await window.writexAgent.callTool('createChapter', { title: 'Capitolo 1', body: 'Anna entra nella serra.' })"
+    },
+    {
+      "intent": "Create a character entity",
+      "call": "await window.writexAgent.callTool('createEntity', { categoryId: 'cat-chars', name: 'Anna', avatar: 'An', desc: 'Curiosa e prudente.' })"
+    },
+    {
+      "intent": "Link exact text to an entity",
+      "call": "await window.writexAgent.callTool('linkText', { text: 'Anna', chapterId: '<chapter-id>', entityIds: ['<entity-id>'] })"
+    },
+    {
+      "intent": "Commit and export",
+      "call": "await window.writexAgent.callTool('commitGlobal', { label: 'Bozza completa' }); const project = await window.writexAgent.callTool('exportProject', {})"
+    },
+    {
+      "intent": "Create a serverless share link",
+      "call": "const share = await window.writexAgent.callTool('createShareLink', {})"
+    },
+    {
+      "intent": "Import a project payload",
+      "call": "await window.writexAgent.callTool('importProject', { project })"
+    }
+  ],
+  "bridgeExamples": [
+    {
+      "intent": "Call through postMessage",
+      "call": "window.postMessage({ type: 'writex-agent-call', id: 'cmd-1', name: 'createChapter', args: { title: 'Capitolo 1', body: 'Anna entra nella serra.' } }, window.location.origin)"
+    },
+    {
+      "intent": "Receive result",
+      "call": "window.addEventListener('writex-agent-result', event => console.log(event.detail))"
+    },
+    {
+      "intent": "Open URL command",
+      "call": "location.hash = 'writex-agent=' + encodeURIComponent(JSON.stringify({ id: 'cmd-2', name: 'commitGlobal', args: { label: 'Bozza completa' } }))"
+    },
+    {
+      "intent": "Read URL command result from DOM",
+      "call": "JSON.parse(document.querySelector('#writex-agent-result').textContent)"
+    },
+    {
+      "intent": "Open shared project URL",
+      "call": "Open /scribyx/#writex-project=<encoded payload>. The app imports the embedded project into the recipient browser."
+    }
+  ],
+  "toolsSourceOfTruth": "At runtime, call window.writexAgent.listTools(). The returned data includes each tool name, description, whenToUse guidance, and JSON Schema parameters."
+}
