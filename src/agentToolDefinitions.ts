@@ -29,6 +29,31 @@ export const writexAgentToolDefinitions: WritexAgentToolDefinition[] = [
     parameters: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
+    name: 'importProject',
+    description: 'Replace the local browser project with a WriteX project payload.',
+    whenToUse: 'Use when opening a shared project payload or restoring an exported .writexproj document.',
+    parameters: {
+      type: 'object',
+      properties: {
+        project: { type: 'object' },
+        document: { type: 'object' },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'createShareLink',
+    description: 'Create a serverless URL that embeds the current WriteX project in the hash fragment.',
+    whenToUse: 'Use when the user wants to send the story to another person without uploading it to a server.',
+    parameters: {
+      type: 'object',
+      properties: {
+        baseUrl: { type: 'string' },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'setTitle',
     description: 'Set the project title.',
     whenToUse: 'Use when the user names or renames the story/project.',

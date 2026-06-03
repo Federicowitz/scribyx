@@ -324,7 +324,9 @@ export default function App() {
   }, [themeMode]);
 
   useEffect(() => {
-    db.loadDocument(DOC_ID).then(data => {
+    if (!editor) return;
+
+    const applyDocument = (data: any) => {
       if (data) {
         setTitle(data.title);
         if (data.categories) setCategories(data.categories);
@@ -350,8 +352,22 @@ export default function App() {
         }
         if (data.activeGraphId) setActiveGraphId(data.activeGraphId);
       }
+    };
+
+    const handleAgentDocumentSaved = (event: Event) => {
+      applyDocument((event as CustomEvent).detail);
+      setIsLoaded(true);
+    };
+
+    window.addEventListener('writex-agent-document-saved', handleAgentDocumentSaved);
+    db.loadDocument(DOC_ID).then(data => {
+      applyDocument(data);
       setIsLoaded(true);
     });
+
+    return () => {
+      window.removeEventListener('writex-agent-document-saved', handleAgentDocumentSaved);
+    };
   }, [editor]);
 
   useEffect(() => {
@@ -710,6 +726,24 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
+  const handleShareProject = async () => {
+    if (!window.writexAgent) {
+      window.alert('Link condivisibile non disponibile: API agente non inizializzata.');
+      return;
+    }
+
+    await db.saveDocument(DOC_ID, buildPersistedDocumentData());
+    const result = await window.writexAgent.callTool('createShareLink', {});
+    const shareUrl = result.data.url;
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      window.alert(result.data.warning ?? 'Link della storia copiato negli appunti.');
+    } catch {
+      window.prompt('Copia questo link per condividere la storia:', shareUrl);
+    }
+  };
+
   const handleRequestProjectImport = () => {
     importProjectInputRef.current?.click();
   };
@@ -954,6 +988,7 @@ export default function App() {
             isPendingDirty={isPendingDirty}
             onExportPdf={handleExportPdf}
             onExportProject={handleExportProject}
+            onShareProject={handleShareProject}
             onImportProject={handleRequestProjectImport}
             setView={setView}
             categories={categories} setCategories={setCategories}

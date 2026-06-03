@@ -20,6 +20,8 @@ import type {
 
 const DOC_ID = 'main-workspace';
 const DEFAULT_GRAPH_MAP_ID = 'graph-map-main';
+const AGENT_HASH_PREFIX = '#writex-agent=';
+const PROJECT_HASH_PREFIX = '#writex-project=';
 
 const defaultCategories: Category[] = [
   { id: 'cat-chars', name: 'Personaggi', icon: 'User' },
@@ -90,6 +92,11 @@ type CreateGraphSnapshotInput = {
   mapId?: string;
   label?: string;
   copyFromSnapshotId?: string;
+};
+
+type ImportProjectInput = {
+  project?: WritexProjectFile | { document: WritexProjectDocument };
+  document?: WritexProjectDocument;
 };
 
 type LinkTextInput = LinkTarget & {
@@ -320,8 +327,86 @@ async function runBridgeCall(call: AgentBridgeCall): Promise<AgentBridgeResult> 
 
 function publishBridgeResult(result: AgentBridgeResult) {
   window.writexAgentLastResult = result;
+
+  let output = document.getElementById('writex-agent-result') as HTMLScriptElement | null;
+  if (!output) {
+    output = document.createElement('script');
+    output.id = 'writex-agent-result';
+    output.type = 'application/json';
+    document.head.appendChild(output);
+  }
+  output.textContent = JSON.stringify(result);
+  document.documentElement.setAttribute('data-writex-agent-last-result-id', result.id);
+  document.documentElement.setAttribute('data-writex-agent-last-ok', String(result.ok));
+
   window.dispatchEvent(new CustomEvent('writex-agent-result', { detail: result }));
   window.postMessage(result, window.location.origin);
+}
+
+function bytesToBase64Url(bytes: Uint8Array) {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.slice(index, index + chunkSize));
+  }
+  return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function base64UrlToBytes(value: string) {
+  const base64 = value.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(value.length / 4) * 4, '=');
+  const binary = window.atob(base64);
+  return Uint8Array.from(binary, char => char.charCodeAt(0));
+}
+
+async function readStream(stream: ReadableStream<Uint8Array>) {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalLength = 0;
+
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    totalLength += value.length;
+  }
+
+  const output = new Uint8Array(totalLength);
+  let offset = 0;
+  chunks.forEach(chunk => {
+    output.set(chunk, offset);
+    offset += chunk.length;
+  });
+  return output;
+}
+
+async function encodeProjectPayload(project: WritexProjectFile) {
+  const json = JSON.stringify(project);
+  if ('CompressionStream' in window) {
+    const stream = new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'));
+    return `gz.${bytesToBase64Url(await readStream(stream))}`;
+  }
+  return `js.${bytesToBase64Url(new TextEncoder().encode(json))}`;
+}
+
+async function decodeProjectPayload(payload: string): Promise<WritexProjectFile> {
+  const separator = payload.indexOf('.');
+  const encoding = separator >= 0 ? payload.slice(0, separator) : 'js';
+  const data = separator >= 0 ? payload.slice(separator + 1) : payload;
+  const bytes = base64UrlToBytes(data);
+
+  if (encoding === 'gz') {
+    if (!('DecompressionStream' in window)) {
+      throw new Error('This browser cannot open compressed WriteX share links.');
+    }
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return JSON.parse(await new Response(stream).text()) as WritexProjectFile;
+  }
+
+  if (encoding === 'js') {
+    return JSON.parse(new TextDecoder().decode(bytes)) as WritexProjectFile;
+  }
+
+  throw new Error(`Unsupported WriteX share link encoding: ${encoding}`);
 }
 
 function isBridgeCall(value: unknown): value is AgentBridgeCall {
@@ -346,11 +431,10 @@ function installCustomEventBridge() {
 }
 
 function installHashBridge() {
-  const prefix = '#writex-agent=';
   const runHashCommand = () => {
-    if (!window.location.hash.startsWith(prefix)) return;
+    if (!window.location.hash.startsWith(AGENT_HASH_PREFIX)) return;
     try {
-      const encoded = window.location.hash.slice(prefix.length);
+      const encoded = window.location.hash.slice(AGENT_HASH_PREFIX.length);
       const call = JSON.parse(decodeURIComponent(encoded)) as AgentBridgeCall;
       if (isBridgeCall(call)) {
         runBridgeCall(call).then(publishBridgeResult);
@@ -364,6 +448,25 @@ function installHashBridge() {
   window.setTimeout(runHashCommand, 0);
 }
 
+function installProjectShareBridge() {
+  const runImport = () => {
+    if (!window.location.hash.startsWith(PROJECT_HASH_PREFIX)) return;
+    const encoded = window.location.hash.slice(PROJECT_HASH_PREFIX.length);
+    decodeProjectPayload(encoded)
+      .then(project => writexAgent.importProject(project))
+      .then(result => publishBridgeResult(createBridgeResult('writex-project-import', true, result)))
+      .catch(error => publishBridgeResult(createBridgeResult(
+        'writex-project-import',
+        false,
+        undefined,
+        error instanceof Error ? error.message : String(error)
+      )));
+  };
+
+  window.addEventListener('hashchange', runImport);
+  window.setTimeout(runImport, 0);
+}
+
 export const writexAgent = {
   listTools(): AgentResult<typeof writexAgentToolDefinitions> {
     return { ok: true, data: writexAgentToolDefinitions };
@@ -375,6 +478,10 @@ export const writexAgent = {
         return this.getProject();
       case 'exportProject':
         return this.exportProject();
+      case 'importProject':
+        return this.importProject((args as ImportProjectInput).project ?? { document: (args as ImportProjectInput).document! });
+      case 'createShareLink':
+        return this.createShareLink(typeof args.baseUrl === 'string' ? args.baseUrl : undefined);
       case 'setTitle':
         return this.setTitle(String(args.title ?? ''));
       case 'createChapter':
@@ -429,9 +536,22 @@ export const writexAgent = {
   },
 
   async importProject(project: WritexProjectFile | { document: WritexProjectDocument }): Promise<AgentMutationResult<WritexProjectDocument>> {
+    if (!project?.document) throw new Error('Missing WriteX project document.');
     const document = normalizeDocument(project.document);
     const saved = await saveDocument(document);
     return { ok: true, saved: true, data: saved };
+  },
+
+  async createShareLink(baseUrl?: string): Promise<AgentResult<{ url: string; payloadLength: number; warning?: string }>> {
+    const exported = await this.exportProject();
+    const payload = await encodeProjectPayload(exported.data);
+    const fallbackBaseUrl = `${window.location.origin}${window.location.pathname}`;
+    const cleanBaseUrl = (baseUrl ?? fallbackBaseUrl).split('#')[0];
+    const url = `${cleanBaseUrl}${PROJECT_HASH_PREFIX}${payload}`;
+    const warning = url.length > 180000
+      ? 'The link is very long. Some browsers, chats, or email clients may truncate it.'
+      : undefined;
+    return { ok: true, data: { url, payloadLength: payload.length, warning } };
   },
 
   async setTitle(title: string) {
@@ -644,6 +764,7 @@ export function installWritexAgentApi() {
       installMessageBridge();
       installCustomEventBridge();
       installHashBridge();
+      installProjectShareBridge();
       window.__writexAgentBridgeInstalled = true;
     }
   }

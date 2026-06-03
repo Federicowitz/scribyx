@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronRight, ChevronDown, Plus, Trash2, Edit3, PanelLeftClose, Wrench, FileDown, FileUp, Download } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus, Trash2, Edit3, PanelLeftClose, Wrench, FileDown, FileUp, Download, Share2 } from 'lucide-react';
 import type { Category, Entity, Todo, Chapter, ChapterStatus } from '../types';
 import { uid } from '../editorUtils';
 import { ChapterPanel } from './ChapterPanel';
@@ -27,6 +27,7 @@ export function Sidebar({
   isPendingDirty,
   onExportPdf,
   onExportProject,
+  onShareProject,
   onImportProject,
   setView,
 
@@ -88,6 +89,9 @@ export function Sidebar({
               </button>
               <button className="utils-menu-item" onClick={() => { setUtilsOpen(false); onExportProject(); }}>
                 <FileDown size={13} /> Salva progetto
+              </button>
+              <button className="utils-menu-item" onClick={() => { setUtilsOpen(false); onShareProject(); }}>
+                <Share2 size={13} /> Copia link storia
               </button>
               <button className="utils-menu-item" onClick={() => { setUtilsOpen(false); onImportProject(); }}>
                 <FileUp size={13} /> Importa progetto
