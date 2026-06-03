@@ -71,7 +71,7 @@ function GhostButton({
 }
 
 function ChapterRow({
-  chapter, isActive, onSelect, onCommit, onStatusChange, onRenameBranch, onOpenHistory,
+  chapter, isActive, onSelect, onCommit, onStatusChange, onRenameBranch, onOpenHistory, readOnly,
 }: {
   chapter: Chapter;
   isActive: boolean;
@@ -80,6 +80,7 @@ function ChapterRow({
   onStatusChange: (status: ChapterStatus) => void;
   onRenameBranch: (branch: string) => void;
   onOpenHistory: () => void;
+  readOnly: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [commitMsg, setCommitMsg] = useState('');
@@ -171,17 +172,19 @@ function ChapterRow({
                       }}>
                         {branch}
                       </span>
-                      <button
-                        className="icon-btn small"
-                        onClick={event => {
-                          event.stopPropagation();
-                          onRenameBranch(branch);
-                        }}
-                        title="Rinomina branch"
-                        style={{ width: 18, height: 18 }}
-                      >
-                        <PencilLine size={10} />
-                      </button>
+                      {!readOnly && (
+                        <button
+                          className="icon-btn small"
+                          onClick={event => {
+                            event.stopPropagation();
+                            onRenameBranch(branch);
+                          }}
+                          title="Rinomina branch"
+                          style={{ width: 18, height: 18 }}
+                        >
+                          <PencilLine size={10} />
+                        </button>
+                      )}
                       <span style={{ fontSize: 10, color: 'var(--text-subtle)' }}>
                         {branchSnaps.length}
                       </span>
@@ -203,12 +206,12 @@ function ChapterRow({
                 const cfg = STATUS_CONFIG[s];
                 const active = chapter.status === s;
                 return (
-                  <button key={s} onClick={e => { e.stopPropagation(); onStatusChange(s); }} style={{
+                  <button key={s} disabled={readOnly} onClick={e => { e.stopPropagation(); if (!readOnly) onStatusChange(s); }} style={{
                     flex: 1, padding: '4px 2px', fontSize: 10, borderRadius: 4,
                     border: `1px solid ${active ? cfg.color : 'var(--border)'}`,
                     background: active ? cfg.bg : 'transparent',
                     color: active ? cfg.color : 'var(--text-muted)',
-                    fontWeight: active ? 700 : 400, cursor: 'pointer',
+                    fontWeight: active ? 700 : 400, cursor: readOnly ? 'default' : 'pointer',
                     transition: 'all 0.12s', textTransform: 'capitalize',
                   }}>
                     {cfg.label}
@@ -219,7 +222,7 @@ function ChapterRow({
           </div>
 
           {/* Commit / Fork */}
-          {!showCommit ? (
+          {!readOnly && (!showCommit ? (
             <GhostButton onClick={e => { e.stopPropagation(); setShowCommit(true); }} style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
               <GitCommit size={11} /> Salva checkpoint
             </GhostButton>
@@ -271,7 +274,7 @@ function ChapterRow({
                 annulla
               </button>
             </div>
-          )}
+          ))}
 
           {/* Cronologia */}
           {snapshotCount > 0 && (
@@ -288,7 +291,7 @@ function ChapterRow({
 // ─── Pannello completo ────────────────────────────────────────────────────────
 export function ChapterPanel({
   chapters, activeChapterId, onSelectChapter, onCreateChapter,
-  onCommitChapter, onStatusChange, onRenameBranch, onOpenHistory, entities, categories,
+  onCommitChapter, onStatusChange, onRenameBranch, onOpenHistory, readOnly = false,
 }: {
   chapters: Chapter[];
   activeChapterId: string | null;
@@ -300,6 +303,7 @@ export function ChapterPanel({
   onOpenHistory: (chapterId: string) => void;
   entities: Entity[];
   categories: Category[];
+  readOnly?: boolean;
 }) {
   return (
     <div style={{ padding: '8px 12px 12px' }}>
@@ -319,29 +323,32 @@ export function ChapterPanel({
           onStatusChange={status => onStatusChange(chapter.id, status)}
           onRenameBranch={branch => onRenameBranch(chapter.id, branch)}
           onOpenHistory={() => onOpenHistory(chapter.id)}
+          readOnly={readOnly}
         />
       ))}
 
-      <button
-        onClick={onCreateChapter}
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          width: '100%', padding: '7px', fontSize: 12, borderRadius: 5,
-          border: '1px dashed var(--border)', color: 'var(--text-muted)',
-          background: 'transparent', cursor: 'pointer', marginTop: 4,
-          transition: 'all 0.12s',
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.borderColor = 'var(--accent)';
-          e.currentTarget.style.color = 'var(--accent)';
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.borderColor = 'var(--border)';
-          e.currentTarget.style.color = 'var(--text-muted)';
-        }}
-      >
-        <Plus size={13} /> Nuovo capitolo
-      </button>
+      {!readOnly && (
+        <button
+          onClick={onCreateChapter}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            width: '100%', padding: '7px', fontSize: 12, borderRadius: 5,
+            border: '1px dashed var(--border)', color: 'var(--text-muted)',
+            background: 'transparent', cursor: 'pointer', marginTop: 4,
+            transition: 'all 0.12s',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.borderColor = 'var(--accent)';
+            e.currentTarget.style.color = 'var(--accent)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.borderColor = 'var(--border)';
+            e.currentTarget.style.color = 'var(--text-muted)';
+          }}
+        >
+          <Plus size={13} /> Nuovo capitolo
+        </button>
+      )}
     </div>
   );
 }

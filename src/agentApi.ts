@@ -8,14 +8,14 @@ import type {
   Chapter,
   ChapterStatus,
   Entity,
-  FragmentLinks,
   GraphEdgeData,
   GraphMap,
   GraphNodeData,
   GraphSnapshot,
-  Relation,
   Snapshot,
   Todo,
+  WritexProjectDocument,
+  WritexProjectFile,
 } from './types';
 
 const DOC_ID = 'main-workspace';
@@ -36,32 +36,6 @@ const defaultGraphMap = (): GraphMap => ({
   order: 0,
   createdAt: Date.now(),
 });
-
-export type WritexProjectDocument = {
-  title: string;
-  content: JSONContent | string;
-  categories: Category[];
-  entities: Entity[];
-  relations: Relation[];
-  todos: Todo[];
-  versions: Snapshot[];
-  activeVersionId: string;
-  pendingUpdatedAt: number;
-  pendingBaseVersionId: string | null;
-  fragmentLinks: FragmentLinks;
-  chapters: Chapter[];
-  graphMaps: GraphMap[];
-  activeGraphMapId: string;
-  graphSnapshots: GraphSnapshot[];
-  activeGraphId: string | null;
-};
-
-export type WritexProjectFile = {
-  format: 'writex-project';
-  schemaVersion: 1;
-  exportedAt: number;
-  document: WritexProjectDocument;
-};
 
 type AgentResult<T> = {
   ok: true;

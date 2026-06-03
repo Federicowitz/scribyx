@@ -131,6 +131,7 @@ interface GraphViewProps {
   setActiveGraphId: React.Dispatch<React.SetStateAction<string | null>>;
   navigationContext?: { linkId: string; snapshotLabel: string } | null;
   onReturnToContext?: () => void;
+  readOnly?: boolean;
 }
 
 function validateGraph(graphNodes: GraphNodeData[], graphEdges: GraphEdgeData[], entities: Entity[], categories: Category[]) {
@@ -193,6 +194,7 @@ function GraphCanvas({
   onPersistEdgeRemove,
   onPersistEdgeAdd,
   onDropEntity,
+  readOnly,
 }: {
   activeGraph: GraphSnapshot;
   entities: Entity[];
@@ -208,6 +210,7 @@ function GraphCanvas({
   onPersistEdgeRemove: (edgeIds: string[]) => void;
   onPersistEdgeAdd: (edge: GraphEdgeData) => void;
   onDropEntity: (entityId: string, position: { x: number; y: number }) => void;
+  readOnly: boolean;
 }) {
   const { invalidNodeIds, nodeWarnings } = useMemo(
     () => validateGraph(activeGraph.nodes, activeGraph.edges, entities, categories),
@@ -265,7 +268,7 @@ function GraphCanvas({
   }, [flowNodes, flowEdges, setNodes, setEdges]);
 
   const onNodeDragStop = useCallback((_event: any, _node: Node, draggedNodes: Node[]) => {
-    if (isPlaying) return;
+    if (isPlaying || readOnly) return;
     const nextNodes = activeGraph.nodes.map(item => ({ ...item, position: { ...item.position } }));
     const deltas = draggedNodes.map(dragged => {
       const previous = activeGraph.nodes.find(item => item.entityId === dragged.id);
@@ -296,22 +299,24 @@ function GraphCanvas({
       const persisted = nextNodes.find(item => item.entityId === node.id);
       return persisted ? { ...node, position: persisted.position } : node;
     }));
-  }, [activeGraph.nodes, activeGraph.edges, isPlaying, propagateLinkedMovement, onPersistNodes, setNodes]);
+  }, [activeGraph.nodes, activeGraph.edges, isPlaying, propagateLinkedMovement, onPersistNodes, readOnly, setNodes]);
 
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
+    if (readOnly) return;
     onNodesChange(changes);
     const removals = changes.filter(change => change.type === 'remove').map(change => change.id);
     if (removals.length > 0) onPersistNodeRemove(removals);
-  }, [onNodesChange, onPersistNodeRemove]);
+  }, [onNodesChange, onPersistNodeRemove, readOnly]);
 
   const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
+    if (readOnly) return;
     onEdgesChange(changes);
     const removals = changes.filter(change => change.type === 'remove').map(change => change.id);
     if (removals.length > 0) onPersistEdgeRemove(removals);
-  }, [onEdgesChange, onPersistEdgeRemove]);
+  }, [onEdgesChange, onPersistEdgeRemove, readOnly]);
 
   const createEdgeBetween = useCallback((sourceId: string, targetId: string) => {
-    if (sourceId === targetId || isPlaying || editMode === 'map') return;
+    if (sourceId === targetId || isPlaying || editMode === 'map' || readOnly) return;
     const sourceEnt = entities.find(entity => entity.id === sourceId);
     const targetEnt = entities.find(entity => entity.id === targetId);
     if (!sourceEnt || !targetEnt) return;
@@ -346,7 +351,7 @@ function GraphCanvas({
     setEdges(current => addEdge(flowEdge, current));
     onPersistEdgeAdd(newEdge);
     onSelectEdge(newEdge.id);
-  }, [activeGraph.edges, entities, categories, isPlaying, editMode, relationChoice, setEdges, onPersistEdgeAdd, onSelectEdge]);
+  }, [activeGraph.edges, entities, categories, isPlaying, editMode, relationChoice, readOnly, setEdges, onPersistEdgeAdd, onSelectEdge]);
 
   const onConnect = useCallback((params: Connection) => {
     if (!params.source || !params.target) return;
@@ -357,7 +362,7 @@ function GraphCanvas({
   const onConnectEnd = useCallback((event: MouseEvent | TouchEvent) => {
     const sourceId = pendingConnectionSourceRef.current;
     pendingConnectionSourceRef.current = null;
-    if (!sourceId || editMode === 'map') return;
+    if (!sourceId || editMode === 'map' || readOnly) return;
 
     const point = event instanceof MouseEvent
       ? { x: event.clientX, y: event.clientY }
@@ -372,22 +377,23 @@ function GraphCanvas({
     if (targetId) {
       createEdgeBetween(sourceId, targetId);
     }
-  }, [editMode, createEdgeBetween]);
+  }, [editMode, createEdgeBetween, readOnly]);
 
   const onDragOver = useCallback((event: React.DragEvent) => {
+    if (readOnly) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
-  }, []);
+  }, [readOnly]);
 
   const onDrop = useCallback((event: React.DragEvent) => {
     event.preventDefault();
-    if (isPlaying) return;
+    if (isPlaying || readOnly) return;
     const entityId = event.dataTransfer.getData('application/entity-id');
     if (!entityId || !reactFlowInstance) return;
     if (activeGraph.nodes.some(node => node.entityId === entityId)) return;
     const position = reactFlowInstance.screenToFlowPosition({ x: event.clientX, y: event.clientY });
     onDropEntity(entityId, position);
-  }, [isPlaying, reactFlowInstance, activeGraph.nodes, onDropEntity]);
+  }, [isPlaying, readOnly, reactFlowInstance, activeGraph.nodes, onDropEntity]);
 
   return (
     <ReactFlow
@@ -398,7 +404,7 @@ function GraphCanvas({
       onEdgesChange={handleEdgesChange}
       onConnect={onConnect}
       onConnectStart={(_event, params) => {
-        pendingConnectionSourceRef.current = params.nodeId ?? null;
+        pendingConnectionSourceRef.current = readOnly ? null : params.nodeId ?? null;
       }}
       onConnectEnd={onConnectEnd}
       onEdgeClick={(_event, edge) => onSelectEdge(edge.id)}
@@ -407,9 +413,9 @@ function GraphCanvas({
       onInit={setReactFlowInstance}
       onDragOver={onDragOver}
       onDrop={onDrop}
-      deleteKeyCode={isPlaying ? null : ['Backspace', 'Delete']}
-      nodesDraggable={!isPlaying}
-      nodesConnectable={!isPlaying && editMode === 'links'}
+      deleteKeyCode={isPlaying || readOnly ? null : ['Backspace', 'Delete']}
+      nodesDraggable={!isPlaying && !readOnly}
+      nodesConnectable={!isPlaying && !readOnly && editMode === 'links'}
       className={`graph-flow ${isPlaying ? 'is-playing' : ''}`}
       fitView
     >
@@ -432,6 +438,7 @@ export function GraphView({
   setActiveGraphId,
   navigationContext,
   onReturnToContext,
+  readOnly = false,
 }: GraphViewProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -661,9 +668,11 @@ export function GraphView({
             <div className="graph-section">
               <div className="graph-section-header">
                 <span>Mappe</span>
-                <button className="graph-add-btn" onClick={createMap} title="Nuova mappa">
-                  <Plus size={14} />
-                </button>
+                {!readOnly && (
+                  <button className="graph-add-btn" onClick={createMap} title="Nuova mappa">
+                    <Plus size={14} />
+                  </button>
+                )}
               </div>
               <div className="graph-snap-list compact-list">
                 {sortedMaps.map(map => (
@@ -676,7 +685,7 @@ export function GraphView({
                       setActiveGraphId(null);
                     }}
                   >
-                    {editingId === map.id ? (
+                    {!readOnly && editingId === map.id ? (
                       <div className="graph-snap-edit-row">
                         <input
                           className="graph-snap-edit-input"
@@ -697,14 +706,14 @@ export function GraphView({
                       <>
                         <MapIcon size={13} color="var(--text-muted)" />
                         <span className="graph-snap-label">{map.label}</span>
-                        <div className="graph-snap-actions">
+                        {!readOnly && <div className="graph-snap-actions">
                           <button className="graph-snap-icon-btn" onClick={event => { event.stopPropagation(); setEditingId(map.id); setEditingLabel(map.label); }} title="Rinomina">
                             <Edit3 size={12} />
                           </button>
                           <button className="graph-snap-icon-btn danger" onClick={event => { event.stopPropagation(); deleteMap(map.id); }} title="Elimina">
                             <Trash2 size={12} />
                           </button>
-                        </div>
+                        </div>}
                       </>
                     )}
                   </div>
@@ -716,10 +725,12 @@ export function GraphView({
               <div className="graph-section-header">
                 <span>Snapshot</span>
                 <div style={{ position: 'relative' }}>
-                  <button className="graph-add-btn" onClick={() => setShowNewMenu(!showNewMenu)} title="Nuovo snapshot">
-                    <Plus size={14} />
-                  </button>
-                  {showNewMenu && (
+                  {!readOnly && (
+                    <button className="graph-add-btn" onClick={() => setShowNewMenu(!showNewMenu)} title="Nuovo snapshot">
+                      <Plus size={14} />
+                    </button>
+                  )}
+                  {!readOnly && showNewMenu && (
                     <div className="graph-new-menu">
                       <button className="graph-new-menu-item" onClick={() => { createSnapshot(); setShowNewMenu(false); }}>
                         <Plus size={12} /> Vuoto
@@ -743,7 +754,7 @@ export function GraphView({
                       setActiveGraphId(snapshot.id);
                     }}
                   >
-                    {editingId === snapshot.id ? (
+                    {!readOnly && editingId === snapshot.id ? (
                       <div className="graph-snap-edit-row">
                         <input
                           className="graph-snap-edit-input"
@@ -763,7 +774,7 @@ export function GraphView({
                     ) : (
                       <>
                         <span className="graph-snap-label">{snapshot.label}</span>
-                        <div className="graph-snap-actions">
+                        {!readOnly && <div className="graph-snap-actions">
                           <button className="graph-snap-icon-btn" onClick={event => { event.stopPropagation(); moveSnapshot(snapshot.id, 'up'); }} title="Sposta su">^</button>
                           <button className="graph-snap-icon-btn" onClick={event => { event.stopPropagation(); moveSnapshot(snapshot.id, 'down'); }} title="Sposta giu">v</button>
                           <button className="graph-snap-icon-btn" onClick={event => { event.stopPropagation(); setEditingId(snapshot.id); setEditingLabel(snapshot.label); }} title="Rinomina">
@@ -772,7 +783,7 @@ export function GraphView({
                           <button className="graph-snap-icon-btn danger" onClick={event => { event.stopPropagation(); deleteSnapshot(snapshot.id); }} title="Elimina">
                             <Trash2 size={12} />
                           </button>
-                        </div>
+                        </div>}
                       </>
                     )}
                   </div>
@@ -784,7 +795,7 @@ export function GraphView({
             </div>
 
             <div className="graph-section">
-              <div className="graph-mode-switch">
+              {!readOnly && <div className="graph-mode-switch">
                 <button
                   className={`graph-mode-btn ${editMode === 'map' ? 'active' : ''}`}
                   onClick={() => {
@@ -800,9 +811,9 @@ export function GraphView({
                 >
                   Collegamenti
                 </button>
-              </div>
+              </div>}
 
-              {editMode === 'links' && (
+              {!readOnly && editMode === 'links' && (
                 <div className="graph-relation-tools">
                   <label className="graph-field-label">
                     Tipo nuova freccia
@@ -855,17 +866,17 @@ export function GraphView({
                   {activeSnapshotIndex >= 0 ? `${activeSnapshotIndex + 1}/${sortedSnapshots.length}` : '0/0'}
                 </span>
               </div>
-              <label className="graph-toggle-row">
+              {!readOnly && <label className="graph-toggle-row">
                 <input
                   type="checkbox"
                   checked={propagateLinkedMovement}
                   onChange={event => setPropagateLinkedMovement(event.target.checked)}
                 />
                 Propaga movimento sui collegamenti
-              </label>
+              </label>}
             </div>
 
-            {activeGraph && (
+            {!readOnly && activeGraph && (
               <div className="graph-section" style={{ flex: 1, overflow: 'hidden' }}>
                 <div className="graph-section-header">
                   <span>{editMode === 'map' ? 'Sulla mappa' : 'Entita'}</span>
@@ -962,15 +973,18 @@ export function GraphView({
             onPersistEdgeRemove={onPersistEdgeRemove}
             onPersistEdgeAdd={onPersistEdgeAdd}
             onDropEntity={onDropEntity}
+            readOnly={readOnly}
           />
         ) : (
           <div className="graph-empty-canvas">
             <div className="graph-empty-canvas-icon">M</div>
             <div className="graph-empty-canvas-title">Nessuno snapshot selezionato</div>
             <div className="graph-empty-canvas-hint">Crea uno snapshot per posizionare entita e costruire la timeline.</div>
-            <button className="btn-primary" style={{ width: 'auto', marginTop: 16 }} onClick={() => createSnapshot()}>
-              + Crea snapshot
-            </button>
+            {!readOnly && (
+              <button className="btn-primary" style={{ width: 'auto', marginTop: 16 }} onClick={() => createSnapshot()}>
+                + Crea snapshot
+              </button>
+            )}
           </div>
         )}
       </div>

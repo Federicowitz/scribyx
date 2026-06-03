@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   AlertCircle,
   ChevronRight,
@@ -23,13 +23,15 @@ export function VersionsPage({
   onOverwrite,
   onDelete,
   onRenameBranch,
+  readOnly = false,
 }: any) {
   const [label, setLabel] = useState('');
-  const activeSnap = versions.find((version: Snapshot) => version.id === activeId);
-  const isHead = versions[versions.length - 1]?.id === activeId;
-  const versionMap = new Map(versions.map((version: Snapshot) => [version.id, version]));
+  const typedVersions = versions as Snapshot[];
+  const activeSnap = typedVersions.find((version: Snapshot) => version.id === activeId);
+  const isHead = typedVersions[typedVersions.length - 1]?.id === activeId;
+  const versionMap = new Map<string, Snapshot>(typedVersions.map((version: Snapshot) => [version.id, version]));
   const depthMap = new Map<string, number>();
-  const versionTree = versions.map((version: Snapshot) => {
+  const versionTree = typedVersions.map((version: Snapshot): { version: Snapshot; depth: number; isBranchStart: boolean } => {
     const parentVersion = version.parentId ? versionMap.get(version.parentId) ?? null : null;
     const parentDepth = version.parentId ? depthMap.get(version.parentId) ?? 0 : 0;
     const depth = parentVersion && parentVersion.branch !== version.branch
@@ -53,17 +55,19 @@ export function VersionsPage({
           <h1>Storia e Branch</h1>
           <div className="branch-pill" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
             <GitBranch size={14} /> Branch Attuale: {activeSnap?.branch || pendingVersion?.branch || 'main'}
-            <button
-              className="icon-btn small"
-              title="Rinomina branch globale"
-              style={{ width: 18, height: 18, marginLeft: 6 }}
-              onClick={() => onRenameBranch(activeSnap?.branch || pendingVersion?.branch || 'main')}
-            >
-              <PencilLine size={10} />
-            </button>
+            {!readOnly && (
+              <button
+                className="icon-btn small"
+                title="Rinomina branch globale"
+                style={{ width: 18, height: 18, marginLeft: 6 }}
+                onClick={() => onRenameBranch(activeSnap?.branch || pendingVersion?.branch || 'main')}
+              >
+                <PencilLine size={10} />
+              </button>
+            )}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        {!readOnly && <div style={{ display: 'flex', gap: 10 }}>
           <input
             className="todo-input"
             placeholder="Messaggio di commit..."
@@ -96,7 +100,7 @@ export function VersionsPage({
               <GitPullRequest size={14} style={{ marginRight: 6 }} /> Forka Flusso
             </button>
           )}
-        </div>
+        </div>}
       </div>
 
       <div className="versions-body">
@@ -223,20 +227,22 @@ export function VersionsPage({
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-subtle)', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span>{version.branch} • {new Date(version.timestamp).toLocaleTimeString()}</span>
-                      <button
-                        className="icon-btn small"
-                        title="Rinomina branch"
-                        style={{ width: 18, height: 18 }}
-                        onClick={event => {
-                          event.stopPropagation();
-                          onRenameBranch(version.branch);
-                        }}
-                      >
-                        <PencilLine size={10} />
-                      </button>
+                      {!readOnly && (
+                        <button
+                          className="icon-btn small"
+                          title="Rinomina branch"
+                          style={{ width: 18, height: 18 }}
+                          onClick={event => {
+                            event.stopPropagation();
+                            onRenameBranch(version.branch);
+                          }}
+                        >
+                          <PencilLine size={10} />
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+                  {!readOnly && <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
                     <button
                       className="icon-btn small"
                       title="Sovrascrivi questo commit"
@@ -259,7 +265,7 @@ export function VersionsPage({
                     >
                       <Trash2 size={12} />
                     </button>
-                  </div>
+                  </div>}
                 </div>
               );
             })}

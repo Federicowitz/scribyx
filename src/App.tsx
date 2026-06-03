@@ -26,6 +26,7 @@ import { ChapterHistoryDrawer } from './components/ChapterHistoryDrawer';
 import type { Chapter, ChapterSnapshot, ChapterStatus } from './types';
 import { GraphView } from './components/GraphView';
 import { EditorToolbar } from './components/EditorToolbar';
+import { getCloudProject, getCurrentUser, type CloudRole } from './cloudRepository';
 import './global.css';
 
 const DOC_ID = 'main-workspace';
@@ -156,6 +157,8 @@ export default function App() {
   const [view, setView] = useState<'editor' | 'versions' | 'graph'>('editor');
   const [mainSidebarOpen, setMainSidebarOpen] = useState(true); // Stato per il Full Screen
   const [isLoaded, setIsLoaded] = useState(false);
+  const [cloudContext, setCloudContext] = useState<{ projectId: string; title: string; role: CloudRole } | null>(null);
+  const [cloudLoadError, setCloudLoadError] = useState('');
 
   const [title, setTitle] = useState("Il mio capolavoro");
   const[categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
@@ -198,6 +201,9 @@ export default function App() {
   const editorRef = useRef<any>(null);
   const importProjectInputRef = useRef<HTMLInputElement | null>(null);
   const selectedTheme = THEME_PRESETS[themeMode];
+  const cloudProjectId = new URLSearchParams(window.location.search).get('cloudProject');
+  const forcedCloudView = new URLSearchParams(window.location.search).get('mode') === 'view';
+  const isReadOnly = forcedCloudView || cloudContext?.role === 'viewer';
 
   const buildWorkspaceData = () => ({
     title,
@@ -320,69 +326,89 @@ export default function App() {
   }, [editor]);
 
   useEffect(() => {
+    editor?.setEditable(!isReadOnly);
+  }, [editor, isReadOnly]);
+
+  useEffect(() => {
     window.localStorage.setItem(UI_THEME_STORAGE_KEY, themeMode);
   }, [themeMode]);
 
+  const applyDocument = (data: any) => {
+    if (data) {
+      setTitle(data.title);
+      if (data.categories) setCategories(data.categories);
+      if (data.entities) setEntities(data.entities);
+      if (data.relations) setRelations(data.relations);
+      if (data.todos) setTodos(data.todos);
+      if (data.versions) setVersions(data.versions);
+      if (data.activeVersionId) setActiveVersionId(data.activeVersionId);
+      if (data.pendingUpdatedAt) setPendingUpdatedAt(data.pendingUpdatedAt);
+      if (data.pendingBaseVersionId !== undefined) setPendingBaseVersionId(data.pendingBaseVersionId);
+      if (data.fragmentLinks) setFragmentLinks(data.fragmentLinks);
+      if (editor && data.content) editor.commands.setContent(data.content);
+      if (data.chapters) setChapters(data.chapters);
+      if (data.graphMaps) setGraphMaps(data.graphMaps);
+      if (data.activeGraphMapId) setActiveGraphMapId(data.activeGraphMapId);
+      if (data.graphSnapshots) {
+        setGraphSnapshots(
+          data.graphSnapshots.map((snapshot: GraphSnapshot) => ({
+            ...snapshot,
+            mapId: snapshot.mapId ?? data.activeGraphMapId ?? DEFAULT_GRAPH_MAP_ID,
+          }))
+        );
+      }
+      if (data.activeGraphId) setActiveGraphId(data.activeGraphId);
+    }
+  };
+
   useEffect(() => {
     if (!editor) return;
-
-    const applyDocument = (data: any) => {
-      if (data) {
-        setTitle(data.title);
-        if (data.categories) setCategories(data.categories);
-        if (data.entities) setEntities(data.entities);
-        if (data.relations) setRelations(data.relations);
-        if (data.todos) setTodos(data.todos);
-        if (data.versions) setVersions(data.versions);
-        if (data.activeVersionId) setActiveVersionId(data.activeVersionId);
-        if (data.pendingUpdatedAt) setPendingUpdatedAt(data.pendingUpdatedAt);
-        if (data.pendingBaseVersionId !== undefined) setPendingBaseVersionId(data.pendingBaseVersionId);
-        if (data.fragmentLinks) setFragmentLinks(data.fragmentLinks);
-        if (editor && data.content) editor.commands.setContent(data.content);
-        if (data.chapters) setChapters(data.chapters);
-        if (data.graphMaps) setGraphMaps(data.graphMaps);
-        if (data.activeGraphMapId) setActiveGraphMapId(data.activeGraphMapId);
-        if (data.graphSnapshots) {
-          setGraphSnapshots(
-            data.graphSnapshots.map((snapshot: GraphSnapshot) => ({
-              ...snapshot,
-              mapId: snapshot.mapId ?? data.activeGraphMapId ?? DEFAULT_GRAPH_MAP_ID,
-            }))
-          );
-        }
-        if (data.activeGraphId) setActiveGraphId(data.activeGraphId);
-      }
-    };
-
     const handleAgentDocumentSaved = (event: Event) => {
+      if (isReadOnly) return;
       applyDocument((event as CustomEvent).detail);
       setIsLoaded(true);
     };
 
     window.addEventListener('writex-agent-document-saved', handleAgentDocumentSaved);
-    db.loadDocument(DOC_ID).then(data => {
-      applyDocument(data);
-      setIsLoaded(true);
-    });
+    if (cloudProjectId) {
+      Promise.resolve()
+        .then(async () => {
+          const user = await getCurrentUser();
+          if (!user) throw new Error('Fai login dalla pagina cloud prima di aprire questo progetto.');
+          const project = await getCloudProject(cloudProjectId, user.id);
+          applyDocument(project.document);
+          setCloudContext({ projectId: project.id, title: project.title, role: project.role as CloudRole });
+          setIsLoaded(true);
+        })
+        .catch(error => {
+          setCloudLoadError(error instanceof Error ? error.message : 'Impossibile caricare il progetto cloud.');
+          setIsLoaded(true);
+        });
+    } else {
+      db.loadDocument(DOC_ID).then(data => {
+        applyDocument(data);
+        setIsLoaded(true);
+      });
+    }
 
     return () => {
       window.removeEventListener('writex-agent-document-saved', handleAgentDocumentSaved);
     };
-  }, [editor]);
+  }, [editor, cloudProjectId, isReadOnly]);
 
   useEffect(() => {
-    if (!isLoaded || !editor) return;
+    if (!isLoaded || !editor || isReadOnly) return;
     const timeout = setTimeout(() => setPendingUpdatedAt(Date.now()), 250);
     return () => clearTimeout(timeout);
-  }, [title, categories, entities, relations, todos, fragmentLinks, chapters, editor?.state.doc, isLoaded]);
+  }, [title, categories, entities, relations, todos, fragmentLinks, chapters, editor?.state.doc, isLoaded, isReadOnly]);
 
   useEffect(() => {
-    if (!isLoaded || !editor) return;
+    if (!isLoaded || !editor || isReadOnly) return;
     const timeout = setTimeout(() => {
       db.saveDocument(DOC_ID, buildPersistedDocumentData());
     }, 1000);
     return () => clearTimeout(timeout);
-  },[title, categories, entities, relations, todos, versions, activeVersionId, pendingUpdatedAt, pendingBaseVersionId, fragmentLinks, chapters, editor?.state.doc, isLoaded, graphMaps, activeGraphMapId, graphSnapshots, activeGraphId]);
+  },[title, categories, entities, relations, todos, versions, activeVersionId, pendingUpdatedAt, pendingBaseVersionId, fragmentLinks, chapters, editor?.state.doc, isLoaded, graphMaps, activeGraphMapId, graphSnapshots, activeGraphId, isReadOnly]);
 
   useEffect(() => {
     if (!editor || !isLoaded) return;
@@ -418,6 +444,7 @@ export default function App() {
   };
 
   const handleCommitGlobal = (label: string, branch: string = activeVersion?.branch ?? 'main') => {
+    if (isReadOnly) return;
     const snap: Snapshot = {
       id: uid(),
       parentId: activeVersionId || null,
@@ -433,6 +460,7 @@ export default function App() {
   };
 
   const handleCreateChapter = () => {
+    if (isReadOnly) return;
     const title = prompt('Titolo del nuovo capitolo?');
     if (!title || !editor) return;
   
@@ -443,6 +471,7 @@ export default function App() {
   };
   
   const handleCommitChapter = (chapterId: string, label: string, branch: string) => {
+    if (isReadOnly) return;
     if (!editor) return;
     const doc = editor.getJSON();
     const chapter = chapters.find(c => c.id === chapterId);
@@ -458,12 +487,14 @@ export default function App() {
   };
   
   const handleChapterStatusChange = (chapterId: string, status: ChapterStatus) => {
+    if (isReadOnly) return;
     setChapters(prev => prev.map(c =>
       c.id === chapterId ? { ...c, status } : c
     ));
   };
   
   const handleRestoreChapterSnapshot = (chapterId: string, snapshot: ChapterSnapshot) => {
+    if (isReadOnly) return;
     if (!editor) return;
     const currentDoc = editor.getJSON();
     const newDoc = restoreChapterSnapshot(currentDoc, chapterId, snapshot);
@@ -481,6 +512,7 @@ export default function App() {
   };
 
   const handleOverwriteChapterSnapshot = (chapterId: string, snapshotId: string) => {
+    if (isReadOnly) return;
     if (!editor) return;
 
     setChapters(prev => prev.map(chapter => {
@@ -507,6 +539,7 @@ export default function App() {
   };
 
   const handleDeleteChapterSnapshot = (chapterId: string, snapshotId: string) => {
+    if (isReadOnly) return;
     setChapters(prev => prev.map(chapter => {
       if (chapter.id !== chapterId) {
         return chapter;
@@ -592,6 +625,7 @@ export default function App() {
   };
 
   const handleOverwriteGlobalVersion = (versionId: string) => {
+    if (isReadOnly) return;
     if (!editor) return;
 
     const baseVersion = versions.find(version => version.id === versionId);
@@ -623,6 +657,7 @@ export default function App() {
   };
 
   const handleDeleteGlobalVersion = (versionId: string) => {
+    if (isReadOnly) return;
     const target = versions.find(version => version.id === versionId);
     if (!target) return;
 
@@ -640,6 +675,7 @@ export default function App() {
   };
 
   const handleRenameGlobalBranch = (branchName: string) => {
+    if (isReadOnly) return;
     const nextBranchName = window.prompt('Nuovo nome del branch globale?', branchName)?.trim();
     if (!nextBranchName || nextBranchName === branchName) return;
 
@@ -652,6 +688,7 @@ export default function App() {
   };
 
   const handleRenameChapterBranch = (chapterId: string, branchName: string) => {
+    if (isReadOnly) return;
     const nextBranchName = window.prompt('Nuovo nome del branch del capitolo?', branchName)?.trim();
     if (!nextBranchName || nextBranchName === branchName) return;
 
@@ -734,21 +771,24 @@ export default function App() {
 
     await db.saveDocument(DOC_ID, buildPersistedDocumentData());
     const result = await window.writexAgent.callTool('createShareLink', {});
-    const shareUrl = result.data.url;
+    const shareData = result.data as { url: string; warning?: string };
+    const shareUrl = shareData.url;
 
     try {
       await navigator.clipboard.writeText(shareUrl);
-      window.alert(result.data.warning ?? 'Link della storia copiato negli appunti.');
+      window.alert(shareData.warning ?? 'Link della storia copiato negli appunti.');
     } catch {
       window.prompt('Copia questo link per condividere la storia:', shareUrl);
     }
   };
 
   const handleRequestProjectImport = () => {
+    if (isReadOnly) return;
     importProjectInputRef.current?.click();
   };
 
   const handleImportProject = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (isReadOnly) return;
     const file = event.target.files?.[0];
     if (!file || !editor) return;
 
@@ -880,6 +920,7 @@ export default function App() {
   };
 
   const handleSaveEntity = (ent: Entity) => {
+    if (isReadOnly) return;
     setEntities(prev => {
       const exists = prev.find(e => e.id === ent.id);
       return exists ? prev.map(e => e.id === ent.id ? ent : e) : [...prev, ent];
@@ -888,6 +929,7 @@ export default function App() {
   };
 
   const handleDeleteEntity = (id: string) => {
+    if (isReadOnly) return;
     setEntities(prev => prev.filter(e => e.id !== id));
     setEditingEntity(null);
   };
@@ -899,7 +941,7 @@ export default function App() {
   };
 
   const removeTodoMarkFromEditor = (todoId: string) => {
-    if (!editor) return;
+    if (!editor || isReadOnly) return;
 
     editor.state.doc.descendants((node, pos) => {
       const hasMark = node.marks?.some(
@@ -918,6 +960,15 @@ export default function App() {
   };
 
   if (!isLoaded) return <div>Caricamento...</div>;
+  if (cloudLoadError) {
+    return (
+      <div style={{ padding: 24, fontFamily: 'system-ui, sans-serif' }}>
+        <h1>Progetto cloud non disponibile</h1>
+        <p>{cloudLoadError}</p>
+        <a href={`${import.meta.env.BASE_URL}cloud`}>Torna alla schermata cloud</a>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -990,6 +1041,7 @@ export default function App() {
             onExportProject={handleExportProject}
             onShareProject={handleShareProject}
             onImportProject={handleRequestProjectImport}
+            readOnly={isReadOnly}
             setView={setView}
             categories={categories} setCategories={setCategories}
             entities={entities} setEditingEntity={setEditingEntity}
@@ -1007,20 +1059,22 @@ export default function App() {
               }
               navigateToChapterStart(id);
             }}
-            onCreateChapter={handleCreateChapter}
-            onCommitChapter={handleCommitChapter}
-            onChapterStatusChange={handleChapterStatusChange}
-            onRenameChapterBranch={handleRenameChapterBranch}
+            onCreateChapter={() => !isReadOnly && handleCreateChapter()}
+            onCommitChapter={(chapterId: string, label: string, branch: string) => !isReadOnly && handleCommitChapter(chapterId, label, branch)}
+            onChapterStatusChange={(chapterId: string, status: ChapterStatus) => !isReadOnly && handleChapterStatusChange(chapterId, status)}
+            onRenameChapterBranch={(chapterId: string, branch: string) => !isReadOnly && handleRenameChapterBranch(chapterId, branch)}
             onOpenChapterHistory={(id: string) => setHistoryDrawerChapterId(id)}
             
             onAddTodo={(text: string, anchorId?: string) =>
-              setTodos(prev =>[...prev, { id: anchorId || uid(), text, done: false, anchorId }])}
+              !isReadOnly && setTodos(prev =>[...prev, { id: anchorId || uid(), text, done: false, anchorId }])}
             onToggleTodo={(id: string) => {
+              if (isReadOnly) return;
               setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
               removeTodoMarkFromEditor(id);
             }}
               
             onRemoveTodo={(id: string) => {
+              if (isReadOnly) return;
               setTodos(prev => prev.filter(t => t.id !== id));
               removeTodoMarkFromEditor(id);
             }}
@@ -1073,19 +1127,33 @@ export default function App() {
                 )}
                 <input
                   className="doc-title-input" value={title}
-                  onChange={e => setTitle(e.target.value)}
+                  onChange={e => !isReadOnly && setTitle(e.target.value)}
                   placeholder="Titolo del Documento..."
+                  readOnly={isReadOnly}
                   style={{ marginBottom: 0 }} // Override al margin originale
                 />
+                {cloudContext && (
+                  <div style={{
+                    flexShrink: 0,
+                    border: '1px solid var(--border)',
+                    borderRadius: 999,
+                    padding: '6px 10px',
+                    color: isReadOnly ? 'var(--accent-2)' : 'var(--accent)',
+                    background: 'var(--accent-light)',
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}>
+                    Cloud: {cloudContext.role === 'owner' && !isReadOnly ? 'modifica' : 'solo lettura'}
+                  </div>
+                )}
               </div>
 
               <div className="editor-wrap">
-                {editor && <EditorToolbar editor={editor} />}
-                {editor && (
+                {editor && !isReadOnly && <EditorToolbar editor={editor} />}
+                {editor && !isReadOnly && (
                   <BubbleMenu
                     editor={editor}
                     className="bubble-menu"
-                    tippyOptions={{ duration: 100 } as any}
                     shouldShow={({ from, to }) => {
                       if (from === to) return false;
                       return !editor.isActive('entityLink');
@@ -1099,9 +1167,9 @@ export default function App() {
                       fragmentLinks={fragmentLinks}
                       setFragmentLinks={setFragmentLinks}
                       onAddTodo={(txt: string, id?: string) =>
-                        setTodos(prev =>[...prev, { id: id || uid(), text: txt, done: false, anchorId: id }])}
+                        !isReadOnly && setTodos(prev =>[...prev, { id: id || uid(), text: txt, done: false, anchorId: id }])}
                       onAddRelation={(rel: Relation) =>
-                        setRelations(prev => [...prev, rel])}
+                        !isReadOnly && setRelations(prev => [...prev, rel])}
                     />
                   </BubbleMenu>
                 )}
@@ -1119,17 +1187,16 @@ export default function App() {
               >
                 <EntityInfoMenu
                   linkId={activeLinkId}
-                  editor={editorRef.current}
+                  editor={isReadOnly ? null : editorRef.current}
                   entities={entities}
-                  categories={categories}
                   graphSnapshots={graphSnapshots}
                   fragmentLinks={fragmentLinks}
-                  setFragmentLinks={setFragmentLinks}
+                  setFragmentLinks={isReadOnly ? (() => undefined) : setFragmentLinks}
                   onOpenEntity={(e) => { closeInfoMenu(); setEditingEntity(e); }}
                   onOpenGraphSnapshot={openGraphSnapshot}
-                  onAddRelation={(rel: Relation) => setRelations(prev =>[...prev, rel])}
                   onClose={closeInfoMenu}
                   onAddMore={(excludeIds) => {
+                    if (isReadOnly) return;
                     setAddMoreMenu({
                       linkId: activeLinkId!,
                       excludeIds,
@@ -1154,9 +1221,8 @@ export default function App() {
                   excludeIds={addMoreMenu.excludeIds}
                   categories={categories}
                   entities={entities}
-                  fragmentLinks={fragmentLinks}
                   setFragmentLinks={setFragmentLinks}
-                  onAddRelation={(rel: Relation) => setRelations(prev => [...prev, rel])}
+                  onAddRelation={(rel: Relation) => !isReadOnly && setRelations(prev => [...prev, rel])}
                   onClose={() => setAddMoreMenu(null)}
                 />
               </div>
@@ -1181,6 +1247,7 @@ export default function App() {
             onOverwrite={handleOverwriteGlobalVersion}
             onDelete={handleDeleteGlobalVersion}
             onRenameBranch={handleRenameGlobalBranch}
+            readOnly={isReadOnly}
           />
         ) : view === 'graph' ? (
           <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: 'var(--bg)' }}>
@@ -1197,6 +1264,7 @@ export default function App() {
               setActiveGraphId={setActiveGraphId}
               navigationContext={graphNavigationContext}
               onReturnToContext={returnFromGraphSnapshot}
+              readOnly={isReadOnly}
             />
           </div>
         ) : null}
@@ -1209,6 +1277,7 @@ export default function App() {
           onSave={handleSaveEntity}
           onDelete={handleDeleteEntity}
           onClose={() => setEditingEntity(null)}
+          readOnly={isReadOnly}
         />
       )}
 
@@ -1218,9 +1287,9 @@ export default function App() {
           <ChapterHistoryDrawer
             chapter={ch}
             onClose={() => setHistoryDrawerChapterId(null)}
-            onRestore={handleRestoreChapterSnapshot}
-            onOverwrite={handleOverwriteChapterSnapshot}
-            onDelete={handleDeleteChapterSnapshot}
+            onRestore={(chapterId: string, snapshot: ChapterSnapshot) => !isReadOnly && handleRestoreChapterSnapshot(chapterId, snapshot)}
+            onOverwrite={(chapterId: string, snapshotId: string) => !isReadOnly && handleOverwriteChapterSnapshot(chapterId, snapshotId)}
+            onDelete={(chapterId: string, snapshotId: string) => !isReadOnly && handleDeleteChapterSnapshot(chapterId, snapshotId)}
           />
         ) : null;
       })()}
@@ -1235,7 +1304,7 @@ export default function App() {
   );
 }
 
-function EditorBubbleMenu({ editor, categories, entities, graphSnapshots, fragmentLinks, setFragmentLinks, onAddTodo, onAddRelation }: any) {
+function EditorBubbleMenu({ editor, categories, entities, graphSnapshots, setFragmentLinks, onAddTodo, onAddRelation }: any) {
   const[mode, setMode] = useState<'default' | 'todo' | 'link'>('default');
   const[todoText, setTodoText] = useState("");
 
@@ -1353,19 +1422,17 @@ function EditorBubbleMenu({ editor, categories, entities, graphSnapshots, fragme
 }
 
 function EntityInfoMenu({
-  linkId, editor, entities, categories, graphSnapshots, fragmentLinks, setFragmentLinks,
-  onOpenEntity, onOpenGraphSnapshot, onAddRelation, onClose, onAddMore
+  linkId, editor, entities, graphSnapshots, fragmentLinks, setFragmentLinks,
+  onOpenEntity, onOpenGraphSnapshot, onClose, onAddMore
 }: {
   linkId: string;
   editor: any;
   entities: Entity[];
-  categories: Category[];
   graphSnapshots: GraphSnapshot[];
   fragmentLinks: FragmentLinks;
   setFragmentLinks: (fn: (prev: FragmentLinks) => FragmentLinks) => void;
   onOpenEntity: (e: Entity) => void;
   onOpenGraphSnapshot: (snapshotId: string, linkId: string) => void;
-  onAddRelation: (rel: Relation) => void;
   onClose: () => void;
   onAddMore: (excludeIds: string[]) => void;
 }) {
@@ -1487,13 +1554,12 @@ function EntityInfoMenu({
 }
 
 function AddEntityMenu({
-  linkId, excludeIds, categories, entities, fragmentLinks, setFragmentLinks, onAddRelation, onClose
+  linkId, excludeIds, categories, entities, setFragmentLinks, onAddRelation, onClose
 }: {
   linkId: string;
   excludeIds: string[];
   categories: Category[];
   entities: Entity[];
-  fragmentLinks: FragmentLinks;
   setFragmentLinks: (fn: (prev: FragmentLinks) => FragmentLinks) => void;
   onAddRelation: (rel: Relation) => void;
   onClose: () => void;

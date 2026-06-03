@@ -2,18 +2,12 @@
 // Drawer che scorre da destra: mostra la storia snapshot di un capitolo,
 // permette navigazione tra branch e ripristino
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   X, GitCommit, GitBranch, RotateCcw, Clock,
   FileText, ChevronDown, ChevronRight, RefreshCw, Trash2
 } from 'lucide-react';
-import type { Chapter, ChapterSnapshot, ChapterStatus } from '../types';
-
-const STATUS_COLORS: Record<ChapterStatus, string> = {
-  draft: '#d97706',
-  revised: '#2563eb',
-  final: '#059669',
-};
+import type { Chapter, ChapterSnapshot } from '../types';
 
 // ─── Singolo nodo nella timeline ─────────────────────────────────────────────
 function SnapshotNode({
@@ -80,7 +74,7 @@ function SnapshotNode({
           )}
         </div>
 
-        <div style={{ display: 'flex', align: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
           <span style={{ fontSize: 11, color: 'var(--text-subtle)', display: 'flex', alignItems: 'center', gap: 3 }}>
             <Clock size={9} />
             {date.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
@@ -161,7 +155,6 @@ function BranchGroup({
   color: string;
 }) {
   const [open, setOpen] = useState(true);
-  const headSnap = snapshots[snapshots.length - 1];
 
   return (
     <div style={{ marginBottom: 16 }}>

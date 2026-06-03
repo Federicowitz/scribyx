@@ -2,7 +2,6 @@
 // Utility pure per il versioning per capitolo — nessuna dipendenza da React
 
 import type { JSONContent } from '@tiptap/react';
-import type { Editor } from '@tiptap/core';
 import type { Chapter, ChapterSnapshot, FragmentLinks } from './types';
 import { uid } from './editorUtils';
 
