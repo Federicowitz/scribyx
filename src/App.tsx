@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, type ChangeEvent, type CSSProperties } fro
 import { EditorContent, useEditor } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
-import { X, ChevronRight, CheckCircle, Link, PanelLeft, Moon, Sun } from 'lucide-react';
+import { X, ChevronRight, CheckCircle, Link, PanelLeft, Moon, Sun, Eye, Pencil } from 'lucide-react';
 
 import { db } from './db';
 import {
@@ -197,13 +197,19 @@ export default function App() {
   } | null>(null);
   const [themeMode, setThemeMode] = useState<UiThemeMode>(readThemePreference);
   const [brightnessPanelOpen, setBrightnessPanelOpen] = useState(false);
+  const [ownerMode, setOwnerMode] = useState<'read' | 'edit'>(() => {
+    const urlMode = new URLSearchParams(window.location.search).get('mode');
+    return urlMode === 'view' ? 'read' : 'edit';
+  });
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
 
   const editorRef = useRef<any>(null);
+  const isReadOnlyRef = useRef(false);
   const importProjectInputRef = useRef<HTMLInputElement | null>(null);
   const selectedTheme = THEME_PRESETS[themeMode];
   const cloudProjectId = new URLSearchParams(window.location.search).get('cloudProject');
-  const forcedCloudView = new URLSearchParams(window.location.search).get('mode') === 'view';
-  const isReadOnly = forcedCloudView || cloudContext?.role === 'viewer';
+  const canToggleReadMode = cloudContext?.role !== 'viewer';
+  const isReadOnly = cloudContext?.role === 'viewer' || (canToggleReadMode && ownerMode === 'read');
 
   const buildWorkspaceData = () => ({
     title,
@@ -326,6 +332,10 @@ export default function App() {
   }, [editor]);
 
   useEffect(() => {
+    isReadOnlyRef.current = isReadOnly;
+  }, [isReadOnly]);
+
+  useEffect(() => {
     editor?.setEditable(!isReadOnly);
   }, [editor, isReadOnly]);
 
@@ -338,6 +348,30 @@ export default function App() {
   useEffect(() => {
     window.localStorage.setItem(UI_THEME_STORAGE_KEY, themeMode);
   }, [themeMode]);
+
+  useEffect(() => {
+    const updateKeyboardOffset = () => {
+      const viewport = window.visualViewport;
+      if (!viewport) {
+        setKeyboardOffset(0);
+        return;
+      }
+
+      const coveredHeight = window.innerHeight - viewport.height - viewport.offsetTop;
+      setKeyboardOffset(Math.max(0, Math.round(coveredHeight)));
+    };
+
+    updateKeyboardOffset();
+    window.visualViewport?.addEventListener('resize', updateKeyboardOffset);
+    window.visualViewport?.addEventListener('scroll', updateKeyboardOffset);
+    window.addEventListener('resize', updateKeyboardOffset);
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', updateKeyboardOffset);
+      window.visualViewport?.removeEventListener('scroll', updateKeyboardOffset);
+      window.removeEventListener('resize', updateKeyboardOffset);
+    };
+  }, []);
 
   const applyDocument = (data: any) => {
     if (data) {
@@ -370,7 +404,7 @@ export default function App() {
   useEffect(() => {
     if (!editor) return;
     const handleAgentDocumentSaved = (event: Event) => {
-      if (isReadOnly) return;
+      if (isReadOnlyRef.current) return;
       applyDocument((event as CustomEvent).detail);
       setIsLoaded(true);
     };
@@ -433,7 +467,7 @@ export default function App() {
     return () => {
       window.removeEventListener('writex-agent-document-saved', handleAgentDocumentSaved);
     };
-  }, [editor, cloudProjectId, isReadOnly]);
+  }, [editor, cloudProjectId]);
 
   useEffect(() => {
     if (!isLoaded || !editor || isReadOnly) return;
@@ -1014,6 +1048,7 @@ export default function App() {
       className={`app-layout ${mainSidebarOpen ? '' : 'focus-mode'}`}
       style={{
         ...selectedTheme.vars,
+        ...({ '--keyboard-offset': `${keyboardOffset}px` } as CSSProperties & Record<'--keyboard-offset', string>),
         position: 'fixed', // Questo bypassa il contenitore max-width del #root di Vite!
         inset: 0, // Significa top:0, left:0, right:0, bottom:0
         display: 'flex',
@@ -1061,6 +1096,18 @@ export default function App() {
       </div>
 
       {/* ─── SIDEBAR PRINCIPALE ─── */}
+      {canToggleReadMode && (
+        <button
+          className={`mode-floating-btn ${isReadOnly ? 'read' : 'edit'}`}
+          onClick={() => setOwnerMode(mode => (mode === 'read' ? 'edit' : 'read'))}
+          title={isReadOnly ? 'Passa alla modalita editor' : 'Passa alla modalita lettura'}
+          type="button"
+        >
+          {isReadOnly ? <Pencil size={18} /> : <Eye size={18} />}
+          <span>{isReadOnly ? 'Editor' : 'Lettura'}</span>
+        </button>
+      )}
+
       <div style={{
         width: mainSidebarOpen ? 'var(--sb-width)' : '0px',
         minWidth: mainSidebarOpen ? 'var(--sb-width)' : '0px',
@@ -1153,7 +1200,7 @@ export default function App() {
             <div className={`editor-area ${mainSidebarOpen ? '' : 'editor-area-focus'}`}>
               
               {/* Contenitore Titolo e Bottone Focus */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
+              <div className="editor-header">
                 {!mainSidebarOpen && (
                   <button
                     className="icon-btn"
@@ -1172,17 +1219,10 @@ export default function App() {
                   style={{ marginBottom: 0 }} // Override al margin originale
                 />
                 {cloudContext && (
-                  <div style={{
-                    flexShrink: 0,
-                    border: '1px solid var(--border)',
-                    borderRadius: 999,
-                    padding: '6px 10px',
-                    color: isReadOnly ? 'var(--accent-2)' : 'var(--accent)',
-                    background: 'var(--accent-light)',
-                    fontSize: 12,
-                    fontWeight: 700,
-                  }}>
-                    Cloud: {cloudContext.role === 'owner' && !isReadOnly ? 'modifica' : 'solo lettura'}
+                  <div className="editor-header-actions">
+                    <div className={`cloud-mode-badge ${isReadOnly ? 'read' : 'edit'}`}>
+                      Cloud: {cloudContext.role === 'owner' && !isReadOnly ? 'modifica' : 'solo lettura'}
+                    </div>
                   </div>
                 )}
               </div>
