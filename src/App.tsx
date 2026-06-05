@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, type ChangeEvent, type CSSProperties } fro
 import { EditorContent, useEditor } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
-import { X, ChevronRight, CheckCircle, Link, PanelLeft, Moon, Sun, Eye, Pencil } from 'lucide-react';
+import { X, ChevronRight, CheckCircle, Link, PanelLeft, Moon, Sun, Eye, Pencil, SlidersHorizontal } from 'lucide-react';
 
 import { db } from './db';
 import {
@@ -197,6 +197,7 @@ export default function App() {
   } | null>(null);
   const [themeMode, setThemeMode] = useState<UiThemeMode>(readThemePreference);
   const [brightnessPanelOpen, setBrightnessPanelOpen] = useState(false);
+  const [formattingPanelOpen, setFormattingPanelOpen] = useState(false);
   const [ownerMode, setOwnerMode] = useState<'read' | 'edit'>(() => {
     const urlMode = new URLSearchParams(window.location.search).get('mode');
     return urlMode === 'view' ? 'read' : 'edit';
@@ -1067,13 +1068,26 @@ export default function App() {
       }}
     >
       <div className="brightness-control" onClick={event => event.stopPropagation()}>
-        <button
-          className="brightness-toggle"
-          onClick={() => setBrightnessPanelOpen(open => !open)}
-          title="Cambia tema interfaccia"
-        >
-          {themeMode === 'dark' ? <Moon size={15} /> : <Sun size={15} />}
-        </button>
+        <div className="top-floating-controls">
+          <button
+            className="brightness-toggle"
+            onClick={() => setBrightnessPanelOpen(open => !open)}
+            title="Cambia tema interfaccia"
+            type="button"
+          >
+            {themeMode === 'dark' ? <Moon size={15} /> : <Sun size={15} />}
+          </button>
+          {view === 'editor' && editor && !isReadOnly && (
+            <button
+              className={`formatting-toggle ${formattingPanelOpen ? 'active' : ''}`}
+              onClick={() => setFormattingPanelOpen(open => !open)}
+              title="Strumenti di formattazione"
+              type="button"
+            >
+              <SlidersHorizontal size={15} />
+            </button>
+          )}
+        </div>
         {brightnessPanelOpen && (
           <div className="brightness-popover">
             <div className="brightness-popover-header">
@@ -1108,14 +1122,17 @@ export default function App() {
         </button>
       )}
 
-      <div style={{
-        width: mainSidebarOpen ? 'var(--sb-width)' : '0px',
-        minWidth: mainSidebarOpen ? 'var(--sb-width)' : '0px',
-        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        overflow: 'hidden',
-        borderRight: mainSidebarOpen ? '1px solid var(--sb-border)' : 'none',
-        flexShrink: 0
-      }}>
+      <div
+        className="sidebar-shell"
+        style={{
+          width: mainSidebarOpen ? 'var(--sb-width)' : '0px',
+          minWidth: mainSidebarOpen ? 'var(--sb-width)' : '0px',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          overflow: 'hidden',
+          borderRight: mainSidebarOpen ? '1px solid var(--sb-border)' : 'none',
+          flexShrink: 0
+        }}
+      >
         <div style={{ width: 'var(--sb-width)', height: '100%' }}>
           <Sidebar
             currentView={view} 
@@ -1181,14 +1198,10 @@ export default function App() {
       <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         
         {/* Pulsante Floating (solo per Grafo o Timeline, quando chiusa) */}
-        {!mainSidebarOpen && view !== 'editor' && (
+        {!mainSidebarOpen && (
           <button
-            className="icon-btn"
+            className="icon-btn sidebar-open-btn"
             onClick={() => setMainSidebarOpen(true)}
-            style={{
-              position: 'absolute', top: '16px', left: '16px', zIndex: 50,
-              background: 'var(--editor-bg)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)'
-            }}
             title="Mostra barra laterale"
           >
             <PanelLeft size={18} />
@@ -1201,16 +1214,6 @@ export default function App() {
               
               {/* Contenitore Titolo e Bottone Focus */}
               <div className="editor-header">
-                {!mainSidebarOpen && (
-                  <button
-                    className="icon-btn"
-                    onClick={() => setMainSidebarOpen(true)}
-                    title="Mostra barra laterale"
-                    style={{ background: 'var(--editor-bg)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)', flexShrink: 0 }}
-                  >
-                    <PanelLeft size={18} />
-                  </button>
-                )}
                 <input
                   className="doc-title-input" value={title}
                   onChange={e => !isReadOnly && setTitle(e.target.value)}
@@ -1228,7 +1231,7 @@ export default function App() {
               </div>
 
               <div className="editor-wrap">
-                {editor && !isReadOnly && <EditorToolbar editor={editor} />}
+                {editor && !isReadOnly && <EditorToolbar editor={editor} mobileOpen={formattingPanelOpen} />}
                 {editor && !isReadOnly && (
                   <BubbleMenu
                     editor={editor}
