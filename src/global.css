@@ -2342,6 +2342,16 @@ ol {
   background: var(--accent-light, #e6ede9);
 }
 
+.cloud-panel button.danger {
+  color: #991b1b;
+}
+
+.cloud-panel button.danger:hover:not(:disabled) {
+  border-color: #991b1b;
+  color: #991b1b;
+  background: #fee2e2;
+}
+
 .cloud-project-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));

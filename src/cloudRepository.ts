@@ -86,6 +86,17 @@ export async function clearIndexedDbCache() {
   await db.clearAll();
 }
 
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${kb.toFixed(1)} KB`;
+  return `${(kb / 1024).toFixed(1)} MB`;
+}
+
+function measureDocumentPayload(document: WritexProjectDocument) {
+  return new Blob([JSON.stringify(document)]).size;
+}
+
 export async function getCurrentUser() {
   const client = requireClient();
   const { data, error } = await client.auth.getUser();
@@ -185,6 +196,7 @@ export async function createCloudProject(title: string, document: WritexProjectD
 
 export async function updateCloudProject(projectId: string, document: WritexProjectDocument) {
   const client = requireClient();
+  const payloadSize = measureDocumentPayload(document);
   const { data, error } = await client
     .from('projects')
     .update({
@@ -195,7 +207,9 @@ export async function updateCloudProject(projectId: string, document: WritexProj
     .eq('id', projectId)
     .select('id,title,owner_id,created_at,updated_at')
     .single();
-  if (error) throw error;
+  if (error) {
+    throw new Error(`${error.message} Payload documento: ${formatBytes(payloadSize)}.`);
+  }
   const project = data as Omit<CloudProjectRow, 'document'>;
   await saveCachedCloudProject({
     projectId: project.id,
@@ -205,6 +219,13 @@ export async function updateCloudProject(projectId: string, document: WritexProj
     document,
   });
   return project;
+}
+
+export async function deleteCloudProject(projectId: string) {
+  const client = requireClient();
+  const { error } = await client.from('projects').delete().eq('id', projectId);
+  if (error) throw error;
+  await db.deleteDocument(`${CLOUD_PROJECT_CACHE_PREFIX}${projectId}`);
 }
 
 export async function listProjectShares(projectId: string) {

@@ -37,6 +37,16 @@ export const db = {
     });
   },
 
+  async deleteDocument(id: string): Promise<void> {
+    const database = await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = database.transaction(STORE_DOCS, 'readwrite');
+      tx.objectStore(STORE_DOCS).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+
   async clearAll(): Promise<void> {
     const database = await this.init();
     return new Promise((resolve, reject) => {

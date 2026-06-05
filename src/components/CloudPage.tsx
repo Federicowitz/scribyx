@@ -4,6 +4,7 @@ import {
   addProjectShare,
   clearIndexedDbCache,
   createCloudProject,
+  deleteCloudProject,
   getProfile,
   listCloudProjects,
   listProjectShares,
@@ -156,6 +157,24 @@ export function CloudPage() {
     });
   };
 
+  const handleDeleteProject = async (project: CloudProjectSummary) => {
+    const confirmed = window.confirm(
+      `Eliminare definitivamente "${project.title}" dal cloud? Verranno rimossi anche i permessi di condivisione. Questa azione non tocca il progetto locale.`
+    );
+    if (!confirmed) return;
+
+    await run(async () => {
+      await deleteCloudProject(project.id);
+      setProjects(current => current.filter(item => item.id !== project.id));
+      setShares(current => {
+        const next = { ...current };
+        delete next[project.id];
+        return next;
+      });
+      setMessage('Progetto cloud eliminato.');
+    });
+  };
+
   const handleLoadShares = async (projectId: string) => {
     await run(async () => {
       setShares(current => ({ ...current, [projectId]: [] }));
@@ -264,6 +283,7 @@ export function CloudPage() {
               shareInput={shareInput}
               onShareInput={setShareInput}
               onUpdateProject={handleUpdateProject}
+              onDeleteProject={handleDeleteProject}
               onLoadShares={handleLoadShares}
               onAddShare={handleAddShare}
               onRemoveShare={handleRemoveShare}
@@ -312,6 +332,7 @@ function ProjectList({
   shareInput,
   onShareInput,
   onUpdateProject,
+  onDeleteProject,
   onLoadShares,
   onAddShare,
   onRemoveShare,
@@ -323,6 +344,7 @@ function ProjectList({
   shareInput: Record<string, string>;
   onShareInput: Dispatch<SetStateAction<Record<string, string>>>;
   onUpdateProject?: (projectId: string) => void;
+  onDeleteProject?: (project: CloudProjectSummary) => void;
   onLoadShares?: (projectId: string) => void;
   onAddShare?: (projectId: string) => void;
   onRemoveShare?: (projectId: string, shareId: string) => void;
@@ -352,6 +374,11 @@ function ProjectList({
                 {project.role === 'owner' && onLoadShares && (
                   <button disabled={busy} onClick={() => onLoadShares(project.id)}>
                     <RefreshCw size={14} /> Permessi
+                  </button>
+                )}
+                {project.role === 'owner' && onDeleteProject && (
+                  <button className="danger" disabled={busy} onClick={() => onDeleteProject(project)}>
+                    <Trash2 size={14} /> Elimina
                   </button>
                 )}
               </div>
