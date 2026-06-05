@@ -1849,6 +1849,16 @@ ol {
   background: var(--bg);
 }
 
+.graph-flow-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.graph-sidebar-mobile-toggle {
+  display: none;
+}
+
 .graph-canvas-wrap .graph-flow.is-playing .react-flow__node {
   transition: transform .72s ease;
 }
@@ -2139,6 +2149,59 @@ ol {
 
 .graph-canvas-wrap .react-flow__background pattern line {
   stroke: var(--border) !important;
+}
+
+.graph-touch-trash {
+  position: absolute;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(220, 38, 38, .35);
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 16px);
+  transition: opacity .16s, transform .16s, background .16s, color .16s;
+}
+
+.graph-touch-trash.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.graph-touch-trash.active {
+  background: #dc2626;
+  color: #fff;
+}
+
+.graph-edge-delete-mobile {
+  position: absolute;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+  z-index: 30;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid rgba(220, 38, 38, .35);
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: var(--shadow);
+  transform: translateX(-50%);
 }
 
 /* ─── Graph: New Snapshot Menu ────────────────────────────── */
@@ -2597,6 +2660,120 @@ ol {
   .ProseMirror > ol.chapter-page-node {
     padding-left: calc(20px + 1.5em);
     padding-right: 20px;
+  }
+
+  .graph-layout {
+    height: 100dvh;
+    width: 100vw;
+  }
+
+  .graph-sidebar-mobile-toggle {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    left: calc(env(safe-area-inset-left, 0px) + 58px);
+    z-index: 1300;
+    display: flex;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--editor-bg);
+    box-shadow: var(--shadow);
+  }
+
+  .graph-layout.main-sidebar-open .graph-sidebar-mobile-toggle {
+    display: none;
+  }
+
+  .graph-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 1050;
+    height: 100dvh;
+    max-width: min(300px, 88vw);
+    box-shadow: var(--shadow);
+  }
+
+  .graph-sidebar.closed {
+    width: 0 !important;
+    min-width: 0 !important;
+    border-right: 0 !important;
+    box-shadow: none;
+    pointer-events: none;
+  }
+
+  .graph-sidebar.closed > * {
+    display: none !important;
+  }
+
+  .graph-layout.main-sidebar-open .graph-sidebar {
+    width: 0 !important;
+    min-width: 0 !important;
+    border-right: 0 !important;
+    box-shadow: none;
+    pointer-events: none;
+  }
+
+  .graph-layout.main-sidebar-open .graph-sidebar > * {
+    display: none !important;
+  }
+
+  .graph-sidebar.open .graph-sidebar-header {
+    min-height: 64px;
+    padding-left: 106px;
+  }
+
+  .graph-sidebar.open .graph-sidebar-title {
+    flex: 1;
+    min-width: 0;
+    text-align: right;
+  }
+
+  .graph-sidebar-header > .icon-btn {
+    display: none;
+  }
+
+  .graph-canvas-wrap {
+    width: 100vw;
+    min-width: 0;
+  }
+
+  .graph-flow.is-touch .react-flow__node {
+    touch-action: none;
+  }
+
+  .graph-flow.is-touch .react-flow__edge {
+    cursor: grab;
+    pointer-events: all;
+  }
+
+  .graph-flow.is-touch .react-flow__edge-path {
+    stroke-width: 8;
+    stroke-opacity: .72;
+  }
+
+  .graph-entity-node.is-connection-source {
+    outline: 3px solid rgba(45, 90, 61, .35);
+    outline-offset: 3px;
+  }
+
+  .graph-flow.is-touch .graph-handle {
+    width: 18px !important;
+    height: 18px !important;
+    border-width: 3px !important;
+  }
+
+  .graph-palette-entity {
+    min-height: 42px;
+    cursor: pointer;
+  }
+
+  .graph-palette-grip {
+    display: none;
+  }
+
+  .graph-edge-delete-mobile {
+    display: flex;
   }
 }
 

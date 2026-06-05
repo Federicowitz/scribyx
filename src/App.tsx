@@ -1347,6 +1347,7 @@ export default function App() {
               navigationContext={graphNavigationContext}
               onReturnToContext={returnFromGraphSnapshot}
               readOnly={isReadOnly}
+              mainSidebarOpen={mainSidebarOpen}
             />
           </div>
         ) : null}

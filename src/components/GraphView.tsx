@@ -84,8 +84,12 @@ function EntityNode({ data }: any) {
 
   return (
     <div
-      className={`graph-entity-node ${isPlace ? 'is-place' : ''}`}
+      className={`graph-entity-node ${isPlace ? 'is-place' : ''} ${data.isConnectionSource ? 'is-connection-source' : ''}`}
       data-invalid={isInvalid || undefined}
+      onPointerDown={(event) => {
+        const target = event.target as HTMLElement;
+        data.onTouchNodePointerDown?.(data.entityId, event, Boolean(target.closest('.graph-handle')));
+      }}
       style={{ borderTop: `4px solid ${color}` }}
     >
       <Handle type="target" position={Position.Top} className="graph-handle" />
@@ -132,6 +136,7 @@ interface GraphViewProps {
   navigationContext?: { linkId: string; snapshotLabel: string } | null;
   onReturnToContext?: () => void;
   readOnly?: boolean;
+  mainSidebarOpen?: boolean;
 }
 
 function validateGraph(graphNodes: GraphNodeData[], graphEdges: GraphEdgeData[], entities: Entity[], categories: Category[]) {
@@ -179,6 +184,24 @@ function collectLinkedNodeIds(startIds: string[], edges: GraphEdgeData[]) {
   return linked;
 }
 
+function useIsMobileGraph() {
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 720px)').matches : false
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const query = window.matchMedia('(max-width: 720px)');
+    const update = () => setIsMobile(query.matches);
+
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+
+  return isMobile;
+}
+
 function GraphCanvas({
   activeGraph,
   entities,
@@ -195,6 +218,7 @@ function GraphCanvas({
   onPersistEdgeAdd,
   onDropEntity,
   readOnly,
+  isMobile,
 }: {
   activeGraph: GraphSnapshot;
   entities: Entity[];
@@ -211,61 +235,68 @@ function GraphCanvas({
   onPersistEdgeAdd: (edge: GraphEdgeData) => void;
   onDropEntity: (entityId: string, position: { x: number; y: number }) => void;
   readOnly: boolean;
+  isMobile: boolean;
 }) {
   const { invalidNodeIds, nodeWarnings } = useMemo(
     () => validateGraph(activeGraph.nodes, activeGraph.edges, entities, categories),
     [activeGraph.nodes, activeGraph.edges, entities, categories]
   );
 
-  const flowNodes: Node[] = useMemo(() => activeGraph.nodes.map(graphNode => {
-    const entity = entities.find(item => item.id === graphNode.entityId);
-    const category = entity ? categories.find(item => item.id === entity.categoryId) : null;
-    return {
-      id: graphNode.entityId,
-      type: 'entityNode',
-      position: graphNode.position,
-      data: {
-        entity: entity || { avatar: '?', name: '???', image: undefined },
-        category,
-        mapRole: graphNode.mapRole,
-        isInvalid: invalidNodeIds.has(graphNode.entityId),
-        warnings: nodeWarnings[graphNode.entityId] || [],
-      },
-    };
-  }), [activeGraph.nodes, entities, categories, invalidNodeIds, nodeWarnings]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
+  const [mobileConnectionSourceId, setMobileConnectionSourceId] = useState<string | null>(null);
+  const [touchDraggingNodeId, setTouchDraggingNodeId] = useState<string | null>(null);
+  const [touchDraggingEdgeId, setTouchDraggingEdgeId] = useState<string | null>(null);
+  const [touchDeleteActive, setTouchDeleteActive] = useState(false);
+  const pendingConnectionSourceRef = useRef<string | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const touchDragRef = useRef<{
+    type: 'node';
+    entityId: string;
+    startFlow: { x: number; y: number };
+    startPosition: { x: number; y: number };
+    currentPosition: { x: number; y: number };
+    overTrash: boolean;
+  } | {
+    type: 'edge';
+    edgeId: string;
+    overTrash: boolean;
+  } | null>(null);
+  const trashRef = useRef<HTMLDivElement | null>(null);
 
-  const flowEdges: Edge[] = useMemo(() => {
-    if (editMode === 'map') return [];
+  function isPointOverTrash(x: number, y: number) {
+    const rect = trashRef.current?.getBoundingClientRect();
+    return rect ? x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom : false;
+  }
 
-    return activeGraph.edges.map(graphEdge => {
-      const relationStyle = getRelationStyle(graphEdge.type);
-      const selected = graphEdge.id === selectedEdgeId;
+  const persistManualNodeDrag = useCallback((entityId: string, position: { x: number; y: number }) => {
+    const previous = activeGraph.nodes.find(item => item.entityId === entityId);
+    if (!previous) return;
+
+    const dx = position.x - previous.position.x;
+    const dy = position.y - previous.position.y;
+    const affected = propagateLinkedMovement
+      ? collectLinkedNodeIds([entityId], activeGraph.edges)
+      : new Set([entityId]);
+
+    const nextNodes = activeGraph.nodes.map(node => {
+      if (!affected.has(node.entityId)) return node;
       return {
-        id: graphEdge.id,
-        source: graphEdge.sourceId,
-        target: graphEdge.targetId,
-        label: graphEdge.type === 'VISUALE' ? '' : graphEdge.type,
-        type: 'default',
-        style: {
-          stroke: selected ? 'var(--accent-2)' : relationStyle.stroke,
-          strokeWidth: selected ? 3 : 2,
-          strokeDasharray: relationStyle.dash,
+        ...node,
+        position: {
+          x: node.position.x + dx,
+          y: node.position.y + dy,
         },
-        labelStyle: { fontSize: 10, fill: 'var(--text-muted)', fontWeight: 500 },
-        markerEnd: { type: MarkerType.ArrowClosed, color: selected ? 'var(--accent-2)' : relationStyle.stroke },
       };
     });
-  }, [activeGraph.edges, editMode, selectedEdgeId]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(flowNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(flowEdges);
-  const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
-  const pendingConnectionSourceRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    setNodes(flowNodes);
-    setEdges(flowEdges);
-  }, [flowNodes, flowEdges, setNodes, setEdges]);
+    onPersistNodes(nextNodes);
+    setNodes(current => current.map(node => {
+      const persisted = nextNodes.find(item => item.entityId === node.id);
+      return persisted ? { ...node, position: persisted.position } : node;
+    }));
+  }, [activeGraph.nodes, activeGraph.edges, propagateLinkedMovement, onPersistNodes, setNodes]);
 
   const onNodeDragStop = useCallback((_event: any, _node: Node, draggedNodes: Node[]) => {
     if (isPlaying || readOnly) return;
@@ -353,6 +384,158 @@ function GraphCanvas({
     onSelectEdge(newEdge.id);
   }, [activeGraph.edges, entities, categories, isPlaying, editMode, relationChoice, readOnly, setEdges, onPersistEdgeAdd, onSelectEdge]);
 
+  const handleMobileNodeTap = useCallback((entityId: string, fromHandle: boolean) => {
+    if (!isMobile || readOnly || isPlaying) return;
+    if (editMode !== 'links') {
+      setMobileConnectionSourceId(null);
+      return;
+    }
+
+    setMobileConnectionSourceId(sourceId => {
+      if (!sourceId) return fromHandle ? entityId : null;
+      if (sourceId === entityId) return null;
+      createEdgeBetween(sourceId, entityId);
+      return null;
+    });
+  }, [isMobile, readOnly, isPlaying, editMode, createEdgeBetween]);
+
+  const handleTouchNodePointerDown = useCallback((entityId: string, event: React.PointerEvent<HTMLDivElement>, fromHandle: boolean) => {
+    if (!isMobile || isPlaying || readOnly || !reactFlowInstance) return;
+
+    event.stopPropagation();
+    const initialNode = activeGraph.nodes.find(node => node.entityId === entityId);
+    if (!initialNode) return;
+
+    if (longPressTimerRef.current) {
+      window.clearTimeout(longPressTimerRef.current);
+    }
+
+    const startFlow = reactFlowInstance.screenToFlowPosition({ x: event.clientX, y: event.clientY });
+    const startPosition = { x: initialNode.position.x, y: initialNode.position.y };
+    const pointerId = event.pointerId;
+    const target = event.currentTarget;
+    target.setPointerCapture?.(pointerId);
+
+    const cleanup = () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+      window.removeEventListener('pointercancel', handleUp);
+      if (longPressTimerRef.current) {
+        window.clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+      target.releasePointerCapture?.(pointerId);
+    };
+
+    const handleMove = (moveEvent: PointerEvent) => {
+      if (moveEvent.pointerId !== pointerId) return;
+      const dragState = touchDragRef.current;
+      if (!dragState || dragState.type !== 'node') return;
+
+      moveEvent.preventDefault();
+      const nextFlow = reactFlowInstance.screenToFlowPosition({ x: moveEvent.clientX, y: moveEvent.clientY });
+      const nextPosition = {
+        x: dragState.startPosition.x + (nextFlow.x - dragState.startFlow.x),
+        y: dragState.startPosition.y + (nextFlow.y - dragState.startFlow.y),
+      };
+      const overTrash = isPointOverTrash(moveEvent.clientX, moveEvent.clientY);
+      dragState.currentPosition = nextPosition;
+      dragState.overTrash = overTrash;
+      setTouchDeleteActive(overTrash);
+      setNodes(current => current.map(node => node.id === entityId ? { ...node, position: nextPosition } : node));
+    };
+
+    const handleUp = (upEvent: PointerEvent) => {
+      if (upEvent.pointerId !== pointerId) return;
+      const dragState = touchDragRef.current;
+
+      cleanup();
+      touchDragRef.current = null;
+      setTouchDraggingNodeId(null);
+      setTouchDeleteActive(false);
+
+      if (!dragState) {
+        handleMobileNodeTap(entityId, fromHandle);
+        return;
+      }
+
+      if (dragState.type !== 'node') return;
+
+      if (dragState.overTrash) {
+        onPersistNodeRemove([entityId]);
+        return;
+      }
+
+      persistManualNodeDrag(entityId, dragState.currentPosition);
+    };
+
+    longPressTimerRef.current = window.setTimeout(() => {
+      touchDragRef.current = {
+        type: 'node',
+        entityId,
+        startFlow,
+        startPosition,
+        currentPosition: startPosition,
+        overTrash: false,
+      };
+      setTouchDraggingNodeId(entityId);
+      setTouchDeleteActive(false);
+      setMobileConnectionSourceId(null);
+    }, 420);
+
+    window.addEventListener('pointermove', handleMove, { passive: false });
+    window.addEventListener('pointerup', handleUp);
+    window.addEventListener('pointercancel', handleUp);
+  }, [isMobile, isPlaying, readOnly, reactFlowInstance, activeGraph.nodes, setNodes, handleMobileNodeTap, onPersistNodeRemove, persistManualNodeDrag]);
+
+  const flowNodes: Node[] = useMemo(() => activeGraph.nodes.map(graphNode => {
+    const entity = entities.find(item => item.id === graphNode.entityId);
+    const category = entity ? categories.find(item => item.id === entity.categoryId) : null;
+    return {
+      id: graphNode.entityId,
+      type: 'entityNode',
+      position: graphNode.position,
+      data: {
+        entity: entity || { avatar: '?', name: '???', image: undefined },
+        entityId: graphNode.entityId,
+        category,
+        mapRole: graphNode.mapRole,
+        isInvalid: invalidNodeIds.has(graphNode.entityId),
+        isConnectionSource: mobileConnectionSourceId === graphNode.entityId,
+        onTouchNodePointerDown: handleTouchNodePointerDown,
+        warnings: nodeWarnings[graphNode.entityId] || [],
+      },
+    };
+  }), [activeGraph.nodes, entities, categories, invalidNodeIds, mobileConnectionSourceId, nodeWarnings, handleTouchNodePointerDown]);
+
+  const flowEdges: Edge[] = useMemo(() => {
+    if (editMode === 'map') return [];
+
+    return activeGraph.edges.map(graphEdge => {
+      const relationStyle = getRelationStyle(graphEdge.type);
+      const selected = graphEdge.id === selectedEdgeId;
+      return {
+        id: graphEdge.id,
+        source: graphEdge.sourceId,
+        target: graphEdge.targetId,
+        label: graphEdge.type === 'VISUALE' ? '' : graphEdge.type,
+        type: 'default',
+        style: {
+          stroke: selected ? 'var(--accent-2)' : relationStyle.stroke,
+          strokeWidth: selected ? 3 : 2,
+          strokeDasharray: relationStyle.dash,
+        },
+        labelStyle: { fontSize: 10, fill: 'var(--text-muted)', fontWeight: 500 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: selected ? 'var(--accent-2)' : relationStyle.stroke },
+      };
+    });
+  }, [activeGraph.edges, editMode, selectedEdgeId]);
+
+  useEffect(() => {
+    setNodes(flowNodes);
+    setEdges(flowEdges);
+  }, [flowNodes, flowEdges, setNodes, setEdges]);
+
   const onConnect = useCallback((params: Connection) => {
     if (!params.source || !params.target) return;
     pendingConnectionSourceRef.current = null;
@@ -395,7 +578,73 @@ function GraphCanvas({
     onDropEntity(entityId, position);
   }, [isPlaying, readOnly, reactFlowInstance, activeGraph.nodes, onDropEntity]);
 
+  const handleGraphPointerDownCapture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isMobile || readOnly || isPlaying) return;
+    const target = event.target as HTMLElement;
+    if (target.closest('.react-flow__node')) return;
+
+    const edgeElement = target.closest('.react-flow__edge') as HTMLElement | null;
+    const edgeId = edgeElement?.getAttribute('data-id');
+    if (!edgeId) return;
+
+    event.stopPropagation();
+    onSelectEdge(edgeId);
+    if (longPressTimerRef.current) {
+      window.clearTimeout(longPressTimerRef.current);
+    }
+
+    const pointerId = event.pointerId;
+
+    const cleanup = () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+      window.removeEventListener('pointercancel', handleUp);
+      if (longPressTimerRef.current) {
+        window.clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+    };
+
+    const handleMove = (moveEvent: PointerEvent) => {
+      if (moveEvent.pointerId !== pointerId) return;
+      const dragState = touchDragRef.current;
+      if (!dragState || dragState.type !== 'edge') return;
+
+      moveEvent.preventDefault();
+      const overTrash = isPointOverTrash(moveEvent.clientX, moveEvent.clientY);
+      dragState.overTrash = overTrash;
+      setTouchDeleteActive(overTrash);
+    };
+
+    const handleUp = (upEvent: PointerEvent) => {
+      if (upEvent.pointerId !== pointerId) return;
+      const dragState = touchDragRef.current;
+
+      cleanup();
+      touchDragRef.current = null;
+      setTouchDraggingEdgeId(null);
+      setTouchDeleteActive(false);
+
+      if (dragState?.type === 'edge' && dragState.overTrash) {
+        onPersistEdgeRemove([edgeId]);
+        onSelectEdge(null);
+      }
+    };
+
+    longPressTimerRef.current = window.setTimeout(() => {
+      touchDragRef.current = { type: 'edge', edgeId, overTrash: false };
+      setTouchDraggingEdgeId(edgeId);
+      setTouchDeleteActive(false);
+      setMobileConnectionSourceId(null);
+    }, 420);
+
+    window.addEventListener('pointermove', handleMove, { passive: false });
+    window.addEventListener('pointerup', handleUp);
+    window.addEventListener('pointercancel', handleUp);
+  }, [isMobile, readOnly, isPlaying, onPersistEdgeRemove, onSelectEdge]);
+
   return (
+    <div className="graph-flow-shell" onPointerDownCapture={handleGraphPointerDownCapture}>
     <ReactFlow
       nodes={nodes}
       edges={edges}
@@ -408,20 +657,49 @@ function GraphCanvas({
       }}
       onConnectEnd={onConnectEnd}
       onEdgeClick={(_event, edge) => onSelectEdge(edge.id)}
-      onPaneClick={() => onSelectEdge(null)}
+      onPaneClick={() => {
+        onSelectEdge(null);
+        setMobileConnectionSourceId(null);
+      }}
       onNodeDragStop={onNodeDragStop}
       onInit={setReactFlowInstance}
       onDragOver={onDragOver}
       onDrop={onDrop}
       deleteKeyCode={isPlaying || readOnly ? null : ['Backspace', 'Delete']}
-      nodesDraggable={!isPlaying && !readOnly}
-      nodesConnectable={!isPlaying && !readOnly && editMode === 'links'}
-      className={`graph-flow ${isPlaying ? 'is-playing' : ''}`}
+      nodesDraggable={!isPlaying && !readOnly && !isMobile}
+      nodesConnectable={!isPlaying && !readOnly && editMode === 'links' && !isMobile}
+      panOnDrag
+      zoomOnPinch
+      selectionOnDrag={false}
+      className={`graph-flow ${isPlaying ? 'is-playing' : ''} ${isMobile ? 'is-touch' : ''}`}
       fitView
     >
       <Background color="var(--border)" gap={24} />
       <Controls />
     </ReactFlow>
+    {isMobile && !readOnly && (
+      <div
+        ref={trashRef}
+        className={`graph-touch-trash ${touchDraggingNodeId || touchDraggingEdgeId ? 'visible' : ''} ${touchDeleteActive ? 'active' : ''}`}
+      >
+        <Trash2 size={18} />
+        Elimina
+      </div>
+    )}
+    {isMobile && !readOnly && selectedEdgeId && !touchDraggingNodeId && !touchDraggingEdgeId && (
+      <button
+        type="button"
+        className="graph-edge-delete-mobile"
+        onClick={() => {
+          onPersistEdgeRemove([selectedEdgeId]);
+          onSelectEdge(null);
+        }}
+      >
+        <Trash2 size={16} />
+        Elimina collegamento
+      </button>
+    )}
+    </div>
   );
 }
 
@@ -439,7 +717,9 @@ export function GraphView({
   navigationContext,
   onReturnToContext,
   readOnly = false,
+  mainSidebarOpen = false,
 }: GraphViewProps) {
+  const isMobileGraph = useIsMobileGraph();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState('');
@@ -449,6 +729,12 @@ export function GraphView({
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [propagateLinkedMovement, setPropagateLinkedMovement] = useState(true);
+
+  useEffect(() => {
+    if (isMobileGraph && mainSidebarOpen) {
+      setSidebarOpen(false);
+    }
+  }, [isMobileGraph, mainSidebarOpen]);
 
   const sortedMaps = useMemo(() => [...graphMaps].sort((a, b) => a.order - b.order), [graphMaps]);
   const activeMap = sortedMaps.find(map => map.id === activeGraphMapId) ?? sortedMaps[0] ?? null;
@@ -636,6 +922,14 @@ export function GraphView({
     ));
   }, [activeGraph?.id, entities, categories, setGraphSnapshots]);
 
+  const getTapDropPosition = useCallback(() => {
+    const nodeCount = activeGraph?.nodes.length ?? 0;
+    return {
+      x: 80 + (nodeCount % 2) * 180,
+      y: 80 + Math.floor(nodeCount / 2) * 120,
+    };
+  }, [activeGraph?.nodes.length]);
+
   const entitiesOnCanvas = new Set(activeGraph?.nodes.map(node => node.entityId) || []);
   const availableEntities = entities.filter(entity => !entitiesOnCanvas.has(entity.id));
   const nodesOnCanvas = (activeGraph?.nodes ?? [])
@@ -646,9 +940,17 @@ export function GraphView({
     .filter(item => item.entity);
 
   return (
-    <div className="graph-layout">
+    <div className={`graph-layout ${mainSidebarOpen ? 'main-sidebar-open' : ''}`}>
+      <button
+        className="icon-btn graph-sidebar-mobile-toggle"
+        onClick={() => setSidebarOpen(open => !open)}
+        title={sidebarOpen ? 'Nascondi pannello grafo' : 'Mostra pannello grafo'}
+        type="button"
+      >
+        {sidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+      </button>
       <div
-        className="graph-sidebar"
+        className={`graph-sidebar ${sidebarOpen ? 'open' : 'closed'}`}
         style={{
           width: sidebarOpen ? '300px' : '48px',
           minWidth: sidebarOpen ? '300px' : '48px',
@@ -909,8 +1211,14 @@ export function GraphView({
                           <div
                             key={entity.id}
                             className="graph-palette-entity"
-                            draggable
+                            draggable={!isMobileGraph}
+                            onClick={() => {
+                              if (!isMobileGraph) return;
+                              onDropEntity(entity.id, getTapDropPosition());
+                              setSidebarOpen(false);
+                            }}
                             onDragStart={event => {
+                              if (isMobileGraph) return;
                               event.dataTransfer.setData('application/entity-id', entity.id);
                               event.dataTransfer.effectAllowed = 'move';
                             }}
@@ -974,6 +1282,7 @@ export function GraphView({
             onPersistEdgeAdd={onPersistEdgeAdd}
             onDropEntity={onDropEntity}
             readOnly={readOnly}
+            isMobile={isMobileGraph}
           />
         ) : (
           <div className="graph-empty-canvas">
