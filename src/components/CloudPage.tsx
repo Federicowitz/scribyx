@@ -16,6 +16,7 @@ import {
   type CloudShare,
 } from '../cloudRepository';
 import { isSupabaseConfigured, supabase, type CloudSession } from '../supabaseClient';
+import { THEME_PRESETS, readThemePreference, type ThemeVars } from '../theme';
 import type { WritexProjectDocument } from '../types';
 
 const appBase = import.meta.env.BASE_URL || '/';
@@ -33,6 +34,7 @@ function formatDate(value: string) {
 }
 
 export function CloudPage() {
+  const [themeMode] = useState(readThemePreference);
   const [session, setSession] = useState<CloudSession | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,6 +48,7 @@ export function CloudPage() {
   const [message, setMessage] = useState('');
 
   const user = session?.user ?? null;
+  const selectedTheme = THEME_PRESETS[themeMode];
   const ownedProjects = useMemo(() => projects.filter(project => project.role === 'owner'), [projects]);
   const sharedProjects = useMemo(() => projects.filter(project => project.role === 'viewer'), [projects]);
 
@@ -217,7 +220,7 @@ export function CloudPage() {
 
   if (!isSupabaseConfigured) {
     return (
-      <CloudShell>
+      <CloudShell themeVars={selectedTheme.vars}>
         <section className="cloud-panel">
           <h1>Cloud non configurato</h1>
           <p>Imposta `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` nel file `.env.local`.</p>
@@ -228,7 +231,7 @@ export function CloudPage() {
   }
 
   return (
-    <CloudShell>
+    <CloudShell themeVars={selectedTheme.vars}>
       <section className="cloud-panel">
         <div className="cloud-topbar">
           <div>
@@ -316,9 +319,9 @@ export function CloudPage() {
   );
 }
 
-function CloudShell({ children }: { children: ReactNode }) {
+function CloudShell({ children, themeVars }: { children: ReactNode; themeVars: ThemeVars }) {
   return (
-    <div className="cloud-page">
+    <div className="cloud-page" style={themeVars}>
       {children}
     </div>
   );

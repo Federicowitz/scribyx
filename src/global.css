@@ -2491,6 +2491,85 @@ ol {
 }
 
 @media (max-width: 720px) {
+  .cloud-page {
+    min-height: 100dvh;
+    padding: 0;
+    background: var(--bg, #f2ede4);
+  }
+
+  .cloud-panel {
+    min-height: 100dvh;
+    width: 100%;
+    max-width: none;
+    border: 0;
+    border-radius: 0;
+    padding: 20px 16px 32px;
+  }
+
+  .cloud-topbar,
+  .cloud-user-row,
+  .cloud-create-row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .cloud-topbar {
+    margin-bottom: 18px;
+  }
+
+  .cloud-topbar h1 {
+    font-size: 28px;
+    line-height: 1.12;
+  }
+
+  .cloud-auth,
+  .cloud-section {
+    gap: 10px;
+  }
+
+  .cloud-auth input,
+  .cloud-user-row input,
+  .cloud-create-row input,
+  .cloud-share-input input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .cloud-actions,
+  .cloud-project-actions,
+  .cloud-share-input {
+    align-items: stretch;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .cloud-panel button,
+  .cloud-link,
+  .cloud-open-btn {
+    width: 100%;
+    min-height: 42px;
+  }
+
+  .cloud-project-list {
+    grid-template-columns: 1fr;
+  }
+
+  .cloud-project-card {
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .cloud-share-row {
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cloud-share-row button {
+    width: 42px;
+    min-width: 42px;
+  }
+
   .app-layout {
     width: 100vw;
     min-width: 0;
