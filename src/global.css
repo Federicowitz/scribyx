@@ -811,12 +811,27 @@ ol {
 
 /* ── TipTap Editor ───────────────────────────────────── */
 .editor-wrap {
+  position: relative;
   background: transparent;
   border: none;
   border-radius: 0;
   box-shadow: none;
   padding: 12px 0 48px;
   min-height: 60vh;
+}
+
+.editor-empty-chapters-hint {
+  position: absolute;
+  top: 96px;
+  left: 50%;
+  z-index: 1;
+  width: min(100% - 32px, 860px);
+  transform: translateX(-50%);
+  color: var(--text-subtle);
+  font: 13px var(--font-ui);
+  text-align: center;
+  opacity: .72;
+  pointer-events: none;
 }
 
 .editor-toolbar {

@@ -137,6 +137,8 @@ export default function App() {
   const cloudProjectId = new URLSearchParams(window.location.search).get('cloudProject');
   const canToggleReadMode = cloudContext?.role !== 'viewer';
   const isReadOnly = cloudContext?.role === 'viewer' || (canToggleReadMode && ownerMode === 'read');
+  const hasChapters = chapters.length > 0;
+  const canEditContent = !isReadOnly && hasChapters;
 
   const buildWorkspaceData = () => ({
     title,
@@ -263,8 +265,8 @@ export default function App() {
   }, [isReadOnly]);
 
   useEffect(() => {
-    editor?.setEditable(!isReadOnly);
-  }, [editor, isReadOnly]);
+    editor?.setEditable(canEditContent);
+  }, [editor, canEditContent]);
 
   useEffect(() => {
     if (isReadOnly && view === 'versions') {
@@ -1173,8 +1175,13 @@ export default function App() {
               </div>
 
               <div className="editor-wrap">
-                {editor && !isReadOnly && <EditorToolbar editor={editor} mobileOpen={formattingPanelOpen} />}
-                {editor && !isReadOnly && (
+                {editor && canEditContent && <EditorToolbar editor={editor} mobileOpen={formattingPanelOpen} />}
+                {!hasChapters && (
+                  <div className="editor-empty-chapters-hint">
+                    Crea il primo capitolo per iniziare a scrivere
+                  </div>
+                )}
+                {editor && canEditContent && (
                   <BubbleMenu
                     editor={editor}
                     className="bubble-menu"
