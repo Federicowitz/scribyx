@@ -46,6 +46,8 @@ const DEFAULT_GRAPH_MAP: GraphMap = {
   order: 0,
   createdAt: Date.now(),
 };
+const MOBILE_LAYOUT_QUERY = '(max-width: 720px)';
+
 function buildChapterVersionMap(chapters: Chapter[]) {
   const chapterVersions: Record<string, string> = {};
   chapters.forEach(chapter => {
@@ -938,6 +940,19 @@ export default function App() {
     setAddMoreMenu(null);
   };
 
+  const openEntityEditor = (entity: Entity) => {
+    setEditingEntity(entity);
+    if (window.matchMedia(MOBILE_LAYOUT_QUERY).matches) {
+      setMainSidebarOpen(false);
+    }
+  };
+
+  const closeMobileSidebarFromContent = () => {
+    if (mainSidebarOpen && window.matchMedia(MOBILE_LAYOUT_QUERY).matches) {
+      setMainSidebarOpen(false);
+    }
+  };
+
   const removeTodoMarkFromEditor = (todoId: string) => {
     if (!editor || isReadOnly) return;
 
@@ -1071,7 +1086,7 @@ export default function App() {
             readOnly={isReadOnly}
             setView={setView}
             categories={categories} setCategories={setCategories}
-            entities={entities} setEditingEntity={setEditingEntity}
+            entities={entities} setEditingEntity={openEntityEditor}
             todos={todos}
 
             chapters={chapters}
@@ -1119,7 +1134,10 @@ export default function App() {
       </div>
 
       {/* ─── AREA CONTENUTO PRINCIPALE ─── */}
-      <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div
+        style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+        onPointerDown={closeMobileSidebarFromContent}
+      >
         
         {/* Pulsante Floating (solo per Grafo o Timeline, quando chiusa) */}
         {!mainSidebarOpen && (
@@ -1198,7 +1216,7 @@ export default function App() {
                   graphSnapshots={graphSnapshots}
                   fragmentLinks={fragmentLinks}
                   setFragmentLinks={isReadOnly ? (() => undefined) : setFragmentLinks}
-                  onOpenEntity={(e) => { closeInfoMenu(); setEditingEntity(e); }}
+                  onOpenEntity={(e) => { closeInfoMenu(); openEntityEditor(e); }}
                   onOpenGraphSnapshot={openGraphSnapshot}
                   onClose={closeInfoMenu}
                   onAddMore={(excludeIds) => {

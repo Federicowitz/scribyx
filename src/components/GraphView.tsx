@@ -1275,7 +1275,14 @@ export function GraphView({
         )}
       </div>
 
-      <div className="graph-canvas-wrap">
+      <div
+        className="graph-canvas-wrap"
+        onPointerDown={() => {
+          if (isMobileGraph && sidebarOpen) {
+            setSidebarOpen(false);
+          }
+        }}
+      >
         {navigationContext && onReturnToContext && (
           <div className="graph-return-banner">
             <button className="btn-secondary" style={{ width: 'auto', padding: '6px 10px' }} onClick={onReturnToContext}>
