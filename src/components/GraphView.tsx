@@ -121,6 +121,7 @@ function EntityNode({ data }: any) {
 }
 
 const nodeTypes = { entityNode: EntityNode };
+const TOUCH_NODE_DRAG_THRESHOLD = 6;
 
 interface GraphViewProps {
   entities: Entity[];
@@ -246,6 +247,7 @@ function GraphCanvas({
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const [mobileConnectionSourceId, setMobileConnectionSourceId] = useState<string | null>(null);
+  const [touchNodePointerActive, setTouchNodePointerActive] = useState(false);
   const [touchDraggingNodeId, setTouchDraggingNodeId] = useState<string | null>(null);
   const [touchDraggingEdgeId, setTouchDraggingEdgeId] = useState<string | null>(null);
   const [touchDeleteActive, setTouchDeleteActive] = useState(false);
@@ -402,6 +404,7 @@ function GraphCanvas({
   const handleTouchNodePointerDown = useCallback((entityId: string, event: React.PointerEvent<HTMLDivElement>, fromHandle: boolean) => {
     if (!isMobile || isPlaying || readOnly || !reactFlowInstance) return;
 
+    event.preventDefault();
     event.stopPropagation();
     const initialNode = activeGraph.nodes.find(node => node.entityId === entityId);
     if (!initialNode) return;
@@ -412,8 +415,10 @@ function GraphCanvas({
 
     const startFlow = reactFlowInstance.screenToFlowPosition({ x: event.clientX, y: event.clientY });
     const startPosition = { x: initialNode.position.x, y: initialNode.position.y };
+    const startScreen = { x: event.clientX, y: event.clientY };
     const pointerId = event.pointerId;
     const target = event.currentTarget;
+    setTouchNodePointerActive(true);
     target.setPointerCapture?.(pointerId);
 
     const cleanup = () => {
@@ -424,15 +429,43 @@ function GraphCanvas({
         window.clearTimeout(longPressTimerRef.current);
         longPressTimerRef.current = null;
       }
+      setTouchNodePointerActive(false);
       target.releasePointerCapture?.(pointerId);
+    };
+
+    const beginNodeDrag = () => {
+      if (touchDragRef.current) return;
+      touchDragRef.current = {
+        type: 'node',
+        entityId,
+        startFlow,
+        startPosition,
+        currentPosition: startPosition,
+        overTrash: false,
+      };
+      setTouchDraggingNodeId(entityId);
+      setTouchDeleteActive(false);
+      setMobileConnectionSourceId(null);
     };
 
     const handleMove = (moveEvent: PointerEvent) => {
       if (moveEvent.pointerId !== pointerId) return;
+
+      moveEvent.preventDefault();
+      if (!touchDragRef.current) {
+        const dx = moveEvent.clientX - startScreen.x;
+        const dy = moveEvent.clientY - startScreen.y;
+        if (Math.hypot(dx, dy) < TOUCH_NODE_DRAG_THRESHOLD) return;
+        if (longPressTimerRef.current) {
+          window.clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = null;
+        }
+        beginNodeDrag();
+      }
+
       const dragState = touchDragRef.current;
       if (!dragState || dragState.type !== 'node') return;
 
-      moveEvent.preventDefault();
       const nextFlow = reactFlowInstance.screenToFlowPosition({ x: moveEvent.clientX, y: moveEvent.clientY });
       const nextPosition = {
         x: dragState.startPosition.x + (nextFlow.x - dragState.startFlow.x),
@@ -470,17 +503,7 @@ function GraphCanvas({
     };
 
     longPressTimerRef.current = window.setTimeout(() => {
-      touchDragRef.current = {
-        type: 'node',
-        entityId,
-        startFlow,
-        startPosition,
-        currentPosition: startPosition,
-        overTrash: false,
-      };
-      setTouchDraggingNodeId(entityId);
-      setTouchDeleteActive(false);
-      setMobileConnectionSourceId(null);
+      beginNodeDrag();
     }, 420);
 
     window.addEventListener('pointermove', handleMove, { passive: false });
@@ -668,7 +691,7 @@ function GraphCanvas({
       deleteKeyCode={isPlaying || readOnly ? null : ['Backspace', 'Delete']}
       nodesDraggable={!isPlaying && !readOnly && !isMobile}
       nodesConnectable={!isPlaying && !readOnly && editMode === 'links' && !isMobile}
-      panOnDrag
+      panOnDrag={!isMobile || !touchNodePointerActive}
       zoomOnPinch
       selectionOnDrag={false}
       className={`graph-flow ${isPlaying ? 'is-playing' : ''} ${isMobile ? 'is-touch' : ''}`}
