@@ -220,7 +220,7 @@ export function CloudPage() {
 
   if (!isSupabaseConfigured) {
     return (
-      <CloudShell themeVars={selectedTheme.vars}>
+      <CloudShell themeMode={themeMode} themeVars={selectedTheme.vars}>
         <section className="cloud-panel">
           <h1>Cloud non configurato</h1>
           <p>Imposta `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` nel file `.env.local`.</p>
@@ -231,7 +231,7 @@ export function CloudPage() {
   }
 
   return (
-    <CloudShell themeVars={selectedTheme.vars}>
+    <CloudShell themeMode={themeMode} themeVars={selectedTheme.vars}>
       <section className="cloud-panel">
         <div className="cloud-topbar">
           <div>
@@ -242,7 +242,7 @@ export function CloudPage() {
         </div>
 
         {!user ? (
-          <form className="cloud-auth" onSubmit={event => handleAuth(event, 'login')}>
+          <form className="cloud-auth cloud-section-block" onSubmit={event => handleAuth(event, 'login')}>
             <input value={email} onChange={event => setEmail(event.target.value)} placeholder="Email" type="email" />
             <input value={password} onChange={event => setPassword(event.target.value)} placeholder="Password" type="password" />
             <input value={nickname} onChange={event => setNickname(event.target.value)} placeholder="Nickname pubblico opzionale" />
@@ -255,8 +255,8 @@ export function CloudPage() {
           </form>
         ) : (
           <>
-            <div className="cloud-user-row">
-              <div>
+            <div className="cloud-user-row cloud-section-block">
+              <div className="cloud-row-copy">
                 <strong>{user.email}</strong>
                 <span>Sessione cloud attiva</span>
               </div>
@@ -267,8 +267,8 @@ export function CloudPage() {
               </button>
             </div>
 
-            <div className="cloud-create-row">
-              <div>
+            <div className="cloud-create-row cloud-section-block">
+              <div className="cloud-row-copy">
                 <strong>Progetto locale</strong>
                 <span>{localDocument?.title ?? 'Nessun documento locale trovato'}</span>
               </div>
@@ -280,6 +280,7 @@ export function CloudPage() {
 
             <ProjectList
               title="I tuoi progetti"
+              sectionKind="owned"
               projects={ownedProjects}
               busy={busy}
               shares={shares}
@@ -294,6 +295,7 @@ export function CloudPage() {
 
             <ProjectList
               title="Condivisi con te"
+              sectionKind="shared"
               projects={sharedProjects}
               busy={busy}
               shares={{}}
@@ -301,7 +303,7 @@ export function CloudPage() {
               onShareInput={setShareInput}
             />
 
-            <div className="cloud-section">
+            <div className="cloud-section cloud-section-block cloud-section-muted">
               <h2>Impostazioni locali</h2>
               <p className="cloud-empty">
                 IndexedDB contiene il workspace offline e le copie cache dei progetti cloud aperti da questo browser.
@@ -319,9 +321,22 @@ export function CloudPage() {
   );
 }
 
-function CloudShell({ children, themeVars }: { children: ReactNode; themeVars: ThemeVars }) {
+function CloudShell({ children, themeMode, themeVars }: { children: ReactNode; themeMode: string; themeVars: ThemeVars }) {
+  useEffect(() => {
+    const previousTheme = document.body.dataset.cloudTheme;
+    document.body.dataset.cloudTheme = themeMode;
+
+    return () => {
+      if (previousTheme) {
+        document.body.dataset.cloudTheme = previousTheme;
+      } else {
+        delete document.body.dataset.cloudTheme;
+      }
+    };
+  }, [themeMode]);
+
   return (
-    <div className="cloud-page" style={themeVars}>
+    <div className={`cloud-page cloud-page-${themeMode}`} style={themeVars}>
       {children}
     </div>
   );
@@ -329,6 +344,7 @@ function CloudShell({ children, themeVars }: { children: ReactNode; themeVars: T
 
 function ProjectList({
   title,
+  sectionKind,
   projects,
   busy,
   shares,
@@ -341,6 +357,7 @@ function ProjectList({
   onRemoveShare,
 }: {
   title: string;
+  sectionKind: 'owned' | 'shared';
   projects: CloudProjectSummary[];
   busy: boolean;
   shares: Record<string, CloudShare[]>;
@@ -353,7 +370,7 @@ function ProjectList({
   onRemoveShare?: (projectId: string, shareId: string) => void;
 }) {
   return (
-    <div className="cloud-section">
+    <div className={`cloud-section cloud-section-block cloud-section-${sectionKind}`}>
       <h2>{title}</h2>
       {projects.length === 0 ? (
         <p className="cloud-empty">Nessun progetto.</p>
