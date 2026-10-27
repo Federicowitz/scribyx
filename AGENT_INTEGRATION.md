@@ -5,11 +5,11 @@ WriteX exposes a browser-side tool API for external agents.
 Agents should not create `.writexproj` files by hand. They should open the running app, inspect the tool list, and call tools through the dispatcher:
 
 ```js
-await window.writexAgent.listTools()
-await window.writexAgent.callTool('createChapter', {
-  title: 'Capitolo 1',
-  body: 'Anna entra nella serra.'
-})
+await window.writexAgent.listTools();
+await window.writexAgent.callTool("createChapter", {
+  title: "Capitolo 1",
+  body: "Anna entra nella serra.",
+});
 ```
 
 ## Runtime Contract
@@ -66,56 +66,62 @@ Minimal smoke test:
 
 ```js
 const call = {
-  type: 'writex-agent-call',
-  id: 'smoke-get-project-1',
-  name: 'getProject',
+  type: "writex-agent-call",
+  id: "smoke-get-project-1",
+  name: "getProject",
   args: {},
-}
+};
 
-location.href = 'http://localhost:5173/scribyx/#writex-agent=' +
-  encodeURIComponent(JSON.stringify(call))
+location.href =
+  "http://localhost:5173/scribyx/#writex-agent=" +
+  encodeURIComponent(JSON.stringify(call));
 ```
 
 Read:
 
 ```js
-JSON.parse(document.querySelector('#writex-agent-result')?.textContent ?? 'null')
+JSON.parse(
+  document.querySelector("#writex-agent-result")?.textContent ?? "null",
+);
 ```
 
 The direct global is simplest when the agent can execute JavaScript in the page:
 
 ```js
-await window.writexAgent.callTool('getProject', {})
+await window.writexAgent.callTool("getProject", {});
 ```
 
 For agents that communicate by page messages:
 
 ```js
-window.addEventListener('writex-agent-result', event => {
-  console.log(event.detail)
-})
+window.addEventListener("writex-agent-result", (event) => {
+  console.log(event.detail);
+});
 
-window.postMessage({
-  type: 'writex-agent-call',
-  id: 'cmd-1',
-  name: 'createChapter',
-  args: {
-    title: 'Capitolo 1',
-    body: 'Anna entra nella serra.',
+window.postMessage(
+  {
+    type: "writex-agent-call",
+    id: "cmd-1",
+    name: "createChapter",
+    args: {
+      title: "Capitolo 1",
+      body: "Anna entra nella serra.",
+    },
   },
-}, window.location.origin)
+  window.location.origin,
+);
 ```
 
 For simple URL-driven calls:
 
 ```js
 const command = {
-  id: 'cmd-2',
-  name: 'commitGlobal',
-  args: { label: 'Bozza completa' },
-}
+  id: "cmd-2",
+  name: "commitGlobal",
+  args: { label: "Bozza completa" },
+};
 
-location.hash = 'writex-agent=' + encodeURIComponent(JSON.stringify(command))
+location.hash = "writex-agent=" + encodeURIComponent(JSON.stringify(command));
 ```
 
 The page publishes the result on `writex-agent-result` and stores the last result in `window.writexAgentLastResult`.
@@ -126,8 +132,8 @@ It also writes the same result as JSON into `#writex-agent-result`, which is use
 For sharing a story without a server, create a link that stores the exported project in the URL hash. The hash fragment stays in the browser and is not sent to the web host.
 
 ```js
-const share = await window.writexAgent.callTool('createShareLink', {})
-console.log(share.data.url)
+const share = await window.writexAgent.callTool("createShareLink", {});
+console.log(share.data.url);
 ```
 
 When another person opens that URL, WriteX reads `#writex-project=...`, imports the embedded project into that browser's local IndexedDB, and publishes the result through `writex-agent-result`.
@@ -147,43 +153,45 @@ Very large projects can produce very long URLs. Some browsers, chats, or email c
 ## Example
 
 ```js
-const tools = await window.writexAgent.listTools()
-console.table(tools.data.map(tool => ({
-  name: tool.name,
-  when: tool.whenToUse,
-})))
+const tools = await window.writexAgent.listTools();
+console.table(
+  tools.data.map((tool) => ({
+    name: tool.name,
+    when: tool.whenToUse,
+  })),
+);
 
-await window.writexAgent.callTool('setTitle', {
-  title: 'La serra di vetro',
-})
+await window.writexAgent.callTool("setTitle", {
+  title: "La serra di vetro",
+});
 
-const chapter = await window.writexAgent.callTool('createChapter', {
-  title: 'La porta chiusa',
-  body: 'Anna trova una porta coperta di edera.',
-})
+const chapter = await window.writexAgent.callTool("createChapter", {
+  title: "La porta chiusa",
+  body: "Anna trova una porta coperta di edera.",
+});
 
-const entity = await window.writexAgent.callTool('createEntity', {
-  categoryId: 'cat-chars',
-  name: 'Anna',
-  avatar: 'An',
-  desc: 'Una ragazza attenta ai dettagli.',
-})
+const entity = await window.writexAgent.callTool("createEntity", {
+  categoryId: "cat-chars",
+  name: "Anna",
+  avatar: "An",
+  desc: "Una ragazza attenta ai dettagli.",
+});
 
-await window.writexAgent.callTool('linkText', {
-  text: 'Anna',
+await window.writexAgent.callTool("linkText", {
+  text: "Anna",
   chapterId: chapter.data.id,
   entityIds: [entity.data.id],
-})
+});
 
-await window.writexAgent.callTool('commitChapter', {
+await window.writexAgent.callTool("commitChapter", {
   chapterId: chapter.data.id,
-  label: 'Prima bozza',
-})
+  label: "Prima bozza",
+});
 
-await window.writexAgent.callTool('commitGlobal', {
-  label: 'Setup storia',
-})
+await window.writexAgent.callTool("commitGlobal", {
+  label: "Setup storia",
+});
 
-const exported = await window.writexAgent.callTool('exportProject', {})
-const share = await window.writexAgent.callTool('createShareLink', {})
+const exported = await window.writexAgent.callTool("exportProject", {});
+const share = await window.writexAgent.callTool("createShareLink", {});
 ```
