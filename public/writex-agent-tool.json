@@ -23,7 +23,7 @@
   },
   "firstTimeAgentProtocol": {
     "priority": [
-      "Read this manifest from the link[rel=\"agent-tools\"] href or from /scribyx/writex-agent-tool.json.",
+      "Read this manifest from the link[rel=\"agent-tools\"] href or from /writex-agent-tool.json.",
       "Open the app page and inspect #writex-agent-manifest if available.",
       "If direct page globals are visible, use window.writexAgent.listTools() and window.writexAgent.callTool(name, args).",
       "If window.writexAgent is undefined, do not treat that as failure. Use the hash bridge and read #writex-agent-result from the DOM.",
@@ -37,7 +37,7 @@
         "name": "toolName",
         "args": {}
       },
-      "urlTemplate": "/scribyx/#writex-agent=<encodeURIComponent(JSON.stringify(call))>",
+      "urlTemplate": "/#writex-agent=<encodeURIComponent(JSON.stringify(call))>",
       "waitForResultSelector": "#writex-agent-result",
       "readResult": "JSON.parse(document.querySelector('#writex-agent-result').textContent)",
       "successCondition": "result.type === 'writex-agent-result' && result.id === call.id && result.ok === true"
@@ -109,7 +109,7 @@
     },
     {
       "intent": "Open shared project URL",
-      "call": "Open /scribyx/#writex-project=<encoded payload>. The app imports the embedded project into the recipient browser."
+      "call": "Open /#writex-project=<encoded payload>. The app imports the embedded project into the recipient browser."
     }
   ],
   "toolsSourceOfTruth": "At runtime, call window.writexAgent.listTools(). The returned data includes each tool name, description, whenToUse guidance, and JSON Schema parameters."

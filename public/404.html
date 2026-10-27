@@ -5,17 +5,19 @@
     <title>WriteX</title>
     <script>
       (function () {
-        var base = '/scribyx/';
+        var base = '/';
         var path = window.location.pathname;
-        var search = window.location.search || '';
+        var params = new URLSearchParams(window.location.search);
         var hash = window.location.hash || '';
 
-        if (path === '/scribyx/cloud' || path === '/scribyx/cloud/') {
-          window.location.replace(base + '?cloud=1' + hash);
-          return;
+        // Keep old shared links working after moving to the custom domain root.
+        if (path === '/cloud' || path === '/cloud/' ||
+            path === '/scribyx/cloud' || path === '/scribyx/cloud/') {
+          params.set('cloud', '1');
         }
 
-        window.location.replace(base + search + hash);
+        var search = params.toString();
+        window.location.replace(base + (search ? '?' + search : '') + hash);
       })();
     </script>
   </head>

@@ -35,13 +35,13 @@ The static manifest is available at:
 With the Vite base path used by this app, the local URL is usually:
 
 ```txt
-http://localhost:5173/scribyx/writex-agent-tool.json
+http://localhost:5173/writex-agent-tool.json
 ```
 
 When prompting a generic coding/browser agent, explicitly mention the bridge:
 
 ```txt
-Apri http://localhost:5173/scribyx/. Leggi link[rel="agent-tools"]. Se window.writexAgent e visibile, usa window.writexAgent.callTool(name,args). Se window.writexAgent risulta undefined, e normale in contesti isolati: usa #writex-agent=<JSON encoded> e leggi JSON da #writex-agent-result. Non scrivere nel DOM o nell'editor manualmente salvo fallback estremo.
+Apri http://localhost:5173/. Leggi link[rel="agent-tools"]. Se window.writexAgent e visibile, usa window.writexAgent.callTool(name,args). Se window.writexAgent risulta undefined, e normale in contesti isolati: usa #writex-agent=<JSON encoded> e leggi JSON da #writex-agent-result. Non scrivere nel DOM o nell'editor manualmente salvo fallback estremo.
 ```
 
 The runtime source of truth is still `listTools()`, because it is shipped with the same code that executes the operations.
@@ -73,7 +73,7 @@ const call = {
 };
 
 location.href =
-  "http://localhost:5173/scribyx/#writex-agent=" +
+  "http://localhost:5173/#writex-agent=" +
   encodeURIComponent(JSON.stringify(call));
 ```
 

@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "deploy": "gh-pages -d dist"
+    "predeploy": "node scripts/check-deploy-env.mjs && npm run build",
+    "deploy": "gh-pages -d dist --dotfiles"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",

@@ -3,5 +3,5 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/scribyx/', // 👈 IMPORTANTISSIMO (nome repo)
+  base: '/', // Custom domain: served from the domain root.
 })
